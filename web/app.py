@@ -44,14 +44,18 @@ if os.path.exists(auth_config_path):
 else:
     auth_config = {"users": []}
 
-# Secret key: generiraj če manjka ali je placeholder, shrani za perzistenco
-_secret = auth_config.get("secret_key")
+# Secret key — vrstni red: ENV var → auth.yaml → auto-generate
+_secret = os.environ.get("EVENT_SCRAPER_SECRET_KEY") or auth_config.get("secret_key")
 if not _secret or _secret == "null" or "ZAMENJAJ" in str(_secret):
     _secret = secrets.token_hex(32)
     auth_config["secret_key"] = _secret
-    os.makedirs(os.path.dirname(auth_config_path), exist_ok=True)
-    with open(auth_config_path, "w") as f:
-        yaml.dump(auth_config, f, default_flow_style=False, allow_unicode=True)
+    try:
+        os.makedirs(os.path.dirname(auth_config_path), exist_ok=True)
+        with open(auth_config_path, "w") as f:
+            yaml.dump(auth_config, f, default_flow_style=False, allow_unicode=True)
+    except (OSError, PermissionError):
+        # Read-only filesystem (npr. Vercel) — secret živi samo v RAM-u, dokler proces teče
+        pass
 
 app.secret_key = _secret
 app.config["SESSION_COOKIE_HTTPONLY"] = True

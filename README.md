@@ -51,7 +51,12 @@ Sistem za centralizirano zbiranje dogodkov iz slovenskih kulturnih in turističn
 
 ---
 
-## 📦 Hitri zagon
+## 🚀 Deployment
+
+Za produkcijski deploy na **Render.com** glej **[DEPLOYMENT.md](./DEPLOYMENT.md)**.
+Stack: Render Web Service + Render Postgres + Render Cron Job (~$7-14/mes).
+
+## 📦 Lokalni hitri zagon
 
 ### Razvojno okolje (SQLite, brez Dockerja)
 
