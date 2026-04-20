@@ -1,0 +1,25 @@
+source:
+  id: "bunker"
+  name: "Stara mestna elektrarna / Bunker"
+  base_url: "https://www.bunker.si"
+  list_url: "https://www.bunker.si/en/events/"
+  region: "ljubljana"
+
+  parser_type: "manual"
+
+  # Sodobne uprizoritvene umetnosti, WordPress - preveriti /feed/
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

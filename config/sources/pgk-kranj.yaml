@@ -1,0 +1,25 @@
+source:
+  id: "pgk-kranj"
+  name: "Prešernovo gledališče Kranj"
+  base_url: "https://pgk.si"
+  list_url: "https://pgk.si/spored"
+  region: "gorenjska"
+
+  parser_type: "manual"
+
+  # Gledališče - sezonski spored
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

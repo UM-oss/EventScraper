@@ -1,0 +1,51 @@
+source:
+  id: "visitljubljana"
+  name: "Visit Ljubljana - Prireditve"
+  base_url: "https://www.visitljubljana.com"
+  list_url: "https://www.visitljubljana.com/sl/obiskovalci/prireditve/"
+  region: "ljubljana"
+
+  # Visit Ljubljana prikaže malo dogodkov, paginacija s ?page= ne deluje
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Dejanska HTML struktura:
+  # <ul class="general-list border-top">
+  #   <li>
+  #     <div class="image-wrapper"><a href="..."><img class="img" src="..."></a></div>
+  #     <div class="content-wrapper">
+  #       <div class="event-date-location"><span><strong>18. 4. 2026, 10:00-14:00</strong></span></div>
+  #       <h3 class="h4 color-red text-uppercase"><a href="...">Naslov</a></h3>
+  #       <p>Opis...</p>
+  #       <div class="general-list--buttons"><h4>Vstopnine ni</h4></div>
+  #     </div>
+  #   </li>
+
+  list_selectors:
+    event_card: "ul.general-list.border-top > li"
+    title: "h3 a"
+    date: ".event-date-location strong"
+    image: ".image-wrapper img"
+    image_attr: "src"
+    detail_link: "h3 a"
+    detail_link_attr: "href"
+    description: ".content-wrapper > p"
+    price: ".general-list--buttons h4"
+
+  detail_selectors:
+    description: ".content-body, .field--name-body, article p"
+    location: ".event-location, .location, .field--name-field-location"
+    time: ".event-date-location, .date-display-single"
+    price: ".general-list--buttons h4, .field--name-field-price"
+    organizer: ".field--name-field-organizer, .organizer"
+    image: ".image-wrapper img, .field--name-field-image img"
+    image_attr: "src"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

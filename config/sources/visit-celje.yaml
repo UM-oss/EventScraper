@@ -1,0 +1,25 @@
+source:
+  id: "visit-celje"
+  name: "Visit Celje"
+  base_url: "https://www.visitcelje.eu"
+  list_url: "https://www.visitcelje.eu/product-category/fairytale-celje/events-2/"
+  region: "savinjska"
+
+  parser_type: "manual"
+
+  # Turistični portal Celje
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

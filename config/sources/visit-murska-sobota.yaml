@@ -1,0 +1,25 @@
+source:
+  id: "visit-murska-sobota"
+  name: "Visit Murska Sobota"
+  base_url: "https://www.visitmurskasobota.si"
+  list_url: "https://www.visitmurskasobota.si/si/dogodki"
+  region: "pomurje"
+
+  parser_type: "manual"
+
+  # Turistični portal MS
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

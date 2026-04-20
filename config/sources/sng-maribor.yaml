@@ -1,0 +1,25 @@
+source:
+  id: "sng-maribor"
+  name: "SNG Maribor"
+  base_url: "https://www.sng-mb.si"
+  list_url: "https://www.sng-mb.si/program"
+  region: "maribor"
+
+  parser_type: "manual"
+
+  # Narodno gledališče - WordPress, preveriti /feed/
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

@@ -1,0 +1,25 @@
+source:
+  id: "dominikanski-ptuj"
+  name: "Dominikanski samostan Ptuj"
+  base_url: "https://dominikanskisamostan.si"
+  list_url: "https://dominikanskisamostan.si/events-2/"
+  region: "ptuj"
+
+  parser_type: "manual"
+
+  # Kulturni dogodki, koncerti
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

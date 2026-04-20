@@ -1,0 +1,35 @@
+source:
+  id: "cd-cc"
+  name: "Cankarjev dom"
+  base_url: "https://www.cd-cc.si"
+  list_url: "https://www.cd-cc.si/mesecni-koledar-dogodkov"
+  region: "osrednjeslovenska"
+
+  parser_type: "cankarjevdom"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors:
+    event_card: ".hero--event"
+    title: ".hero--title h2 a"
+    date: ".hero--date"
+    image: ".hero--image img"
+    image_attr: "src"
+    detail_link: ".hero--title h2 a"
+    detail_link_attr: "href"
+    categories: ".event--type a"
+
+  detail_selectors:
+    description: ".event--description, .content"
+    location: ".event--location"
+    time: ".event--time"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

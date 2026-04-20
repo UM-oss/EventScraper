@@ -1,0 +1,25 @@
+source:
+  id: "kstm-sevnica"
+  name: "KSTM Sevnica"
+  base_url: "https://www.kstm.si"
+  list_url: "https://www.kstm.si/dogodki-in-prireditve.html"
+  region: "posavje"
+
+  parser_type: "manual"
+
+  # Kulturno-societalno in turistično društvo
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

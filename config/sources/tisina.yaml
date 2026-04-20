@@ -1,0 +1,26 @@
+source:
+  id: "tisina"
+  name: "Občina Tišina - Dogodki"
+  base_url: "https://www.tisina.si"
+  list_url: "https://www.tisina.si/dogodki"
+  feed_url: "https://www.tisina.si/DogodkiRSS"
+  region: "pomurska"
+
+  # RSS feed z dogodki - ima polja: title, description, link, pubDate,
+  # startdate, location, categories, image
+  parser_type: "rss"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

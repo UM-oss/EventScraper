@@ -1,0 +1,25 @@
+source:
+  id: "visit-jesenice"
+  name: "Visit Jesenice"
+  base_url: "https://visit.jesenice.si"
+  list_url: "https://visit.jesenice.si/en/events/event-calendar/"
+  region: "gorenjska"
+
+  parser_type: "manual"
+
+  # Turistični portal Jesenice
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

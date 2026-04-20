@@ -1,0 +1,18 @@
+# PRIMER auth.yaml — kopiraj v auth.yaml in prilagodi.
+# auth.yaml NE sme biti v git-u (vsebuje gesla)!
+#
+# Po prvem zagonu se "secret_key" avtomatsko generira če manjka.
+# Uporabnike dodaj z `python manage_users.py add` ALI ročno (bcrypt hash).
+
+secret_key: null
+
+# Gemini Flash AI ključ (https://aistudio.google.com/apikey)
+# Brezplačni tier: 250 zahtev/dan
+gemini_api_key: null
+
+users:
+  - email: admin@example.si
+    name: Admin
+    # Generiraj hash z:
+    # python -c "import bcrypt; print(bcrypt.hashpw(b'GESLO', bcrypt.gensalt()).decode())"
+    password_hash: $2b$12$REPLACE_WITH_REAL_BCRYPT_HASH

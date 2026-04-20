@@ -1,0 +1,53 @@
+source:
+  id: "kinosiska"
+  name: "Kino Šiška"
+  base_url: "https://www.kinosiska.si"
+  list_url: "https://www.kinosiska.si/"
+  region: "ljubljana"
+
+  # Homepage vsebuje prihodnje dogodke, arhiv pa pretekle
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Struktura na homepage:
+  # <article class="card-event-small">  ali <div class="card-event-full-width/featured">
+  #   <div class="image" style="background-image: url('...')"></div>
+  #   <div class="category category-concert"><div class="background">Glasba</div></div>
+  #   <div class="content">
+  #     <p class="time">03. 08. / pon / 19:00</p>
+  #     <h1/h6 class="title">PRIMUS @ Križanke</h1/h6>
+  #     <p class="subtitle">koncert</p>
+  #   </div>
+  # </article>
+
+  list_selectors:
+    event_card: "[class*='card-event']"
+    title: ".title"
+    date: ".time"
+    image: ""
+    image_attr: ""
+    detail_link: "a[href*='/dogodek/']"
+    detail_link_attr: "href"
+    categories: ".category .background"
+    description: ".subtitle"
+
+  # Za slike: izvleči iz style="background-image: url('...')"
+  # To zahteva poseben parser - dodamo v engine
+
+  detail_selectors:
+    description: ".entry-content, .content-body, .event-description, article .text, .elementor-widget-text-editor"
+    location: ".event-location, .location, .venue"
+    time: ".time, .event-time"
+    price: ".price, .event-price"
+    organizer: ".organizer, .event-organizer"
+    image: ".entry-content img, article img, .event-image img"
+    image_attr: "src"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

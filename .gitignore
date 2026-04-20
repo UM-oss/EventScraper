@@ -1,0 +1,50 @@
+# === SKRIVNOSTI (NIKOLI v git!) ===
+.env
+.env.local
+.env.*.local
+config/auth.yaml
+*.key
+*.pem
+*.secret
+
+# === BAZA ===
+data/*.db
+data/*.db-journal
+data/*.db.backup-*
+*.db
+*.db-journal
+
+# === PYTHON ===
+venv/
+.venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# === IDE / OS ===
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# === LOGI ===
+logs/
+*.log
+
+# === PDF dokumentacija (regenerirana iz skripte) ===
+docs/event-scraper-dokumentacija.pdf
+docs/event-scraper-phase1-changelog.pdf
+
+# === TEMP ===
+tmp/
+*.tmp
+.cache/

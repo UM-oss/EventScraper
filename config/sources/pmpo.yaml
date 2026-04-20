@@ -1,0 +1,25 @@
+source:
+  id: "pmpo"
+  name: "Pokrajinski muzej Ptuj-Ormož"
+  base_url: "https://pmpo.si"
+  list_url: "https://pmpo.si/"
+  region: "ptuj"
+
+  parser_type: "manual"
+
+  # Muzej, razstave, vodeni ogledi
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

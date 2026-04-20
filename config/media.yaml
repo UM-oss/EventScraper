@@ -1,0 +1,196 @@
+# Mediji - 7 portalov za objavo dogodkov
+# Viri se scrapajo CENTRALIZIRANO (vsi po celi Sloveniji),
+# nato se dogodki pametno razvrščajo na portale glede na:
+#   - regionalno relevantnost
+#   - tematsko zanimivost
+#   - ciljno publiko
+#   - ravnotežje med organizatorji in temami
+# Dogodek se lahko objavi na VEČ portalih hkrati.
+
+media:
+  - id: "sobotainfo"
+    name: "SobotaInfo"
+    url: "https://sobotainfo.com"
+    primary_regions:
+      - "pomurska"
+      - "pomurje"
+      - "murska-sobota"
+      - "lendava"
+    secondary_regions: []
+
+  - id: "pomurec"
+    name: "Pomurec.com"
+    url: "https://pomurec.com"
+    primary_regions:
+      - "pomurska"
+      - "pomurje"
+      - "prlekija"
+    secondary_regions:
+      - "podravska"
+
+  - id: "mariborinfo"
+    name: "MariborInfo"
+    url: "https://mariborinfo.com"
+    primary_regions:
+      - "maribor"
+      - "podravska"
+    secondary_regions: []
+
+  - id: "ptujinfo"
+    name: "PtujInfo"
+    url: "https://ptujinfo.com"
+    primary_regions:
+      - "ptuj"
+      - "ormoz"
+    secondary_regions:
+      - "podravska"
+
+  - id: "ljubljanainfo"
+    name: "LjubljanaInfo"
+    url: "https://ljubljanainfo.com"
+    primary_regions:
+      - "ljubljana"
+      - "osrednjeslovenska"
+      - "mol"
+    secondary_regions: []
+
+  - id: "gorenjskainfo"
+    name: "GorenjskaInfo"
+    url: "https://gorenjskainfo.com"
+    primary_regions:
+      - "gorenjska"
+    secondary_regions: []
+
+  - id: "dolenjskainfo"
+    name: "DolenjskaInfo"
+    url: "https://dolenjskainfo.com"
+    primary_regions:
+      - "dolenjska"
+      - "jugovzhodna"
+      - "posavje"
+    secondary_regions: []
+
+  - id: "slovenija"
+    name: "Slovenija"
+    url: ""
+    primary_regions:
+      - "slovenija"
+      - "savinjska"
+      - "zasavska"
+      - "primorska"
+      - "goriska"
+      - "koroska"
+      - "notranjska"
+    secondary_regions: []
+
+# Centralni seznam VSEH virov - scrapajo se neodvisno od medijev
+# parser_type: "manual" = še ni avtomatiziranega parserja
+# Dogodki se po scrapanju razvrščajo na portale glede na regijo in relevantnost
+all_sources:
+  # === AVTOMATIZIRANI VIRI ===
+  automated:
+    # RSS feedi
+    - "kulturnik-rss-ljubljana"
+    - "kulturnik-rss-maribor"
+    - "kulturnik-rss-pomurje"
+    - "kulturnik-rss-gorenjska"
+    - "kulturnik-rss-dolenjska"
+    - "kulturnik-rss-ptuj"
+    - "kulturnik-rss-slovenija"
+    - "ljubljana-si"
+    - "tisina"
+    - "ormoz"
+    - "prlekija"
+    # iCal
+    - "kultura-maribor"
+    # HTML parserji
+    - "visitljubljana"
+    - "kulturnik-ljubljana"
+    - "kulturnik-maribor"
+    - "mgml"
+    - "kinodvor"
+    - "kinosiska"
+    - "spanskiborci"
+    - "cd-cc"
+    - "visitskofjaloka"
+    - "mojaobcina-osrednjeslovenska"
+    - "mojaobcina-pomurska"
+    - "mojaobcina-jugovzhodna"
+    - "mojaobcina-gorenjska"
+    - "maribor24"
+    - "visitmaribor"
+    - "stuk"
+    - "zkts-ms"
+    - "visitradgona"
+    - "visitkranj"
+    - "visitdolenjska"
+    - "dolenjskilist"
+    - "visitkrsko"
+    - "visitnovomesto"
+    - "visitptuj"
+    - "ptuj-si"
+    - "kultura-media"
+    - "mynight"
+
+  # === ROČNI VIRI (parser_type: manual) ===
+  # Ti viri so registrirani v sistemu, scraping se preskoči.
+  # Ko se najde rešitev (RSS/iCal/HTML parser), se parser_type spremeni.
+  manual:
+    # Ljubljana - gledališča
+    - "festival-ljubljana"
+    - "drama-ljubljana"
+    - "opera-ljubljana"
+    - "mladinsko"
+    - "mgl"
+    - "mini-teater"
+    # Ljubljana - galerije in muzeji
+    - "moderna-galerija"
+    - "narodna-galerija"
+    - "nms"
+    - "cukrarna"
+    - "bunker"
+    - "pionirski-dom"
+    # Maribor
+    - "sng-maribor"
+    - "narodni-dom-mb"
+    - "ugm"
+    - "lutkovno-mb"
+    - "gt22"
+    - "kibla"
+    - "pekarna"
+    # Gorenjska
+    - "visit-bled"
+    - "visit-bohinj"
+    - "visit-kranjska-gora"
+    - "pgk-kranj"
+    - "layerjeva-hisa"
+    - "radolca"
+    - "visit-jesenice"
+    # Dolenjska / Posavje
+    - "dolenjski-muzej"
+    - "kstm-sevnica"
+    - "visit-brezice"
+    - "posavski-muzej"
+    - "grad-rajhenburg"
+    # Pomurje
+    - "visit-pomurje"
+    - "visit-murska-sobota"
+    - "pomurski-muzej"
+    - "tic-lendava"
+    # Ptuj
+    - "pmpo"
+    - "dominikanski-ptuj"
+    - "mgp-ptuj"
+    # Primorska
+    - "visit-koper"
+    - "visit-piran"
+    - "gledalisce-koper"
+    - "primorski-festival"
+    - "go2025"
+    - "sng-nova-gorica"
+    - "kulturni-dom-ng"
+    # Celje / Savinjska
+    - "visit-celje"
+    - "slg-celje"
+    - "celjski-dom"
+    - "pokmuz-celje"

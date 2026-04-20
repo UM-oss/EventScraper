@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Uporabniki — Event Scraper</title>
+    <style>
+        :root {
+            --bg: #fafbfc;
+            --surface: #fff;
+            --surface-2: #f4f6f8;
+            --border: #e3e8ee;
+            --text: #1a1d1f;
+            --text-muted: #5e6772;
+            --primary: #2563eb;
+            --primary-hover: #1d4ed8;
+            --primary-bg: #eff6ff;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --danger-bg: #fef2f2;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); color: var(--text); }
+        a { color: var(--primary); text-decoration: none; }
+
+        .topbar {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 12px 24px; display: flex; align-items: center; gap: 16px;
+        }
+        .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+        .brand-dot { width: 10px; height: 10px; background: var(--primary); border-radius: 50%; }
+        .topbar-spacer { flex: 1; }
+        .topbar-link { color: var(--text-muted); font-size: 13px; padding: 6px 10px; border-radius: 6px; }
+        .topbar-link:hover { background: var(--surface-2); color: var(--text); }
+
+        .container { max-width: 960px; margin: 24px auto; padding: 0 24px; }
+        .page-title { font-size: 22px; margin-bottom: 6px; }
+        .page-subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 8px 14px; border: 1px solid transparent; border-radius: 6px;
+            font-size: 13px; font-weight: 500; cursor: pointer; line-height: 1;
+            transition: all 0.15s; font-family: inherit;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-ghost { background: transparent; color: var(--text-muted); border-color: var(--border); }
+        .btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover { filter: brightness(0.95); }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+        table {
+            width: 100%; background: white; border-collapse: collapse;
+            border-radius: 10px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; }
+        th { background: var(--surface-2); font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; }
+        tr:last-child td { border-bottom: none; }
+
+        .role-pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+        .role-admin { background: var(--primary-bg); color: var(--primary); }
+        .role-editor { background: #f3f4f6; color: var(--text-muted); }
+
+        .media-tag { display: inline-block; background: var(--surface-2); color: var(--text-muted); padding: 1px 6px; border-radius: 3px; font-size: 11px; margin-right: 3px; }
+
+        /* Modal */
+        .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 100; align-items: center; justify-content: center; }
+        .modal-bg.open { display: flex; }
+        .modal {
+            background: white; padding: 24px; border-radius: 12px; max-width: 500px; width: 90%;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+        }
+        .modal h2 { margin-bottom: 16px; font-size: 18px; }
+        .field { margin-bottom: 14px; }
+        .field label { display: block; font-size: 12px; color: var(--text-muted); font-weight: 500; margin-bottom: 4px; text-transform: uppercase; }
+        .field input, .field select {
+            width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 6px;
+            font-family: inherit; font-size: 14px;
+        }
+        .field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.18); }
+        .field-help { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+        .modal-footer { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+        .media-checkboxes {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;
+            padding: 10px; background: var(--surface-2); border-radius: 6px;
+            max-height: 180px; overflow-y: auto;
+        }
+        .media-checkboxes label { display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+
+        .toast {
+            position: fixed; bottom: 24px; right: 24px;
+            background: var(--text); color: white; padding: 12px 20px;
+            border-radius: 6px; font-size: 14px; z-index: 1000;
+            opacity: 0; transform: translateY(20px); transition: all 0.25s;
+        }
+        .toast.show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body>
+
+<div class="topbar">
+    <a href="/" class="brand"><span class="brand-dot"></span> Event Scraper</a>
+    <div class="topbar-spacer"></div>
+    <a href="/" class="topbar-link">← Dashboard</a>
+    <a href="/health" class="topbar-link">🩺 Viri</a>
+    <a href="/logout" class="topbar-link">Odjava</a>
+</div>
+
+<div class="container">
+    <h1 class="page-title">👥 Upravljanje uporabnikov</h1>
+    <p class="page-subtitle">Dodaj urednike in jim dodeli dostop do specifičnih medijev. Samo administratorji vidijo to stran.</p>
+
+    <div style="margin-bottom: 16px;">
+        <button class="btn btn-primary" onclick="openAddModal()">+ Dodaj uporabnika</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Ime</th>
+                <th>Vloga</th>
+                <th>Dostop do medijev</th>
+                <th>Zadnja prijava</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody id="users-tbody"></tbody>
+    </table>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-bg" id="modal-bg">
+    <div class="modal">
+        <h2 id="modal-title">Dodaj uporabnika</h2>
+        <div class="field">
+            <label>Email</label>
+            <input type="email" id="f-email" placeholder="ime@portal.si">
+        </div>
+        <div class="field">
+            <label>Ime</label>
+            <input type="text" id="f-name" placeholder="Ime Priimek">
+        </div>
+        <div class="field">
+            <label id="f-password-label">Geslo</label>
+            <input type="text" id="f-password" placeholder="Najmanj 6 znakov">
+            <div class="field-help" id="f-password-help">Geslo se shrani kot bcrypt hash.</div>
+        </div>
+        <div class="field">
+            <label>Vloga</label>
+            <select id="f-role">
+                <option value="editor">Urednik (samo dodeljeni mediji)</option>
+                <option value="admin">Administrator (vse pravice)</option>
+            </select>
+        </div>
+        <div class="field" id="media-field">
+            <label>Dostop do medijev</label>
+            <div class="media-checkboxes" id="f-media"></div>
+            <div class="field-help">Velja samo za vlogo "Urednik". Admin ima vedno dostop do vsega.</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal()">Prekliči</button>
+            <button class="btn btn-primary" id="modal-save" onclick="saveUser()">Shrani</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // CSRF wrapper
+    (function() {
+        const token = document.querySelector('meta[name=csrf-token]').content;
+        const orig = window.fetch;
+        window.fetch = function(url, opts={}) {
+            const m = (opts.method || 'GET').toUpperCase();
+            if (m !== 'GET' && m !== 'HEAD') {
+                opts.headers = opts.headers || {};
+                if (!opts.headers['X-CSRF-Token']) opts.headers['X-CSRF-Token'] = token;
+            }
+            return orig(url, opts);
+        };
+    })();
+
+    let _toastT = null;
+    function showToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg; t.classList.add('show');
+        clearTimeout(_toastT);
+        _toastT = setTimeout(() => t.classList.remove('show'), 2500);
+    }
+
+    let _allMedia = [];
+    let _editingEmail = null;
+
+    function _fmtDate(iso) {
+        if (!iso) return '—';
+        const d = new Date(iso);
+        const pad = n => n.toString().padStart(2, '0');
+        return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '. ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+    }
+
+    function _esc(s) {
+        return String(s || '').replace(/[&<>"']/g, c => ({
+            '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"
+        }[c]));
+    }
+
+    async function loadUsers() {
+        const resp = await fetch('/api/users');
+        const data = await resp.json();
+        _allMedia = data.media_outlets || [];
+        const tbody = document.getElementById('users-tbody');
+        tbody.innerHTML = data.users.map(u => `
+            <tr>
+                <td><strong>${_esc(u.email)}</strong></td>
+                <td>${_esc(u.name)}</td>
+                <td><span class="role-pill role-${u.role}">${u.role === 'admin' ? 'Administrator' : 'Urednik'}</span></td>
+                <td>${u.role === 'admin'
+                    ? '<span style="color:#999;font-size:12px;">vsi</span>'
+                    : (u.allowed_media.length
+                        ? u.allowed_media.map(m => `<span class="media-tag">${_esc(m)}</span>`).join('')
+                        : '<span style="color:#999;font-size:12px;">brez dostopa</span>')}</td>
+                <td style="color:var(--text-muted);font-size:12px;">${_fmtDate(u.last_login_at)}</td>
+                <td style="text-align:right;white-space:nowrap;">
+                    <button class="btn btn-ghost btn-sm" onclick='editUser(${JSON.stringify(u)})'>Uredi</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteUser('${_esc(u.email)}')">Pobriši</button>
+                </td>
+            </tr>
+        `).join('');
+    }
+
+    function _renderMediaCheckboxes(selected = []) {
+        const set = new Set(selected);
+        document.getElementById('f-media').innerHTML = _allMedia.map(m => `
+            <label>
+                <input type="checkbox" value="${_esc(m.id)}" ${set.has(m.id) ? 'checked' : ''}>
+                ${_esc(m.name)}
+            </label>
+        `).join('');
+    }
+
+    function _toggleMediaField() {
+        const role = document.getElementById('f-role').value;
+        document.getElementById('media-field').style.display = role === 'editor' ? '' : 'none';
+    }
+
+    function openAddModal() {
+        _editingEmail = null;
+        document.getElementById('modal-title').textContent = 'Dodaj uporabnika';
+        document.getElementById('f-email').value = '';
+        document.getElementById('f-email').disabled = false;
+        document.getElementById('f-name').value = '';
+        document.getElementById('f-password').value = '';
+        document.getElementById('f-password-label').textContent = 'Geslo *';
+        document.getElementById('f-password-help').textContent = 'Najmanj 6 znakov.';
+        document.getElementById('f-role').value = 'editor';
+        _renderMediaCheckboxes([]);
+        _toggleMediaField();
+        document.getElementById('modal-bg').classList.add('open');
+    }
+
+    function editUser(user) {
+        _editingEmail = user.email;
+        document.getElementById('modal-title').textContent = 'Uredi uporabnika';
+        document.getElementById('f-email').value = user.email;
+        document.getElementById('f-email').disabled = true;
+        document.getElementById('f-name').value = user.name;
+        document.getElementById('f-password').value = '';
+        document.getElementById('f-password-label').textContent = 'Novo geslo (opcijsko)';
+        document.getElementById('f-password-help').textContent = 'Pusti prazno če gesla ne spreminjaš.';
+        document.getElementById('f-role').value = user.role;
+        _renderMediaCheckboxes(user.allowed_media);
+        _toggleMediaField();
+        document.getElementById('modal-bg').classList.add('open');
+    }
+
+    document.getElementById('f-role').addEventListener('change', _toggleMediaField);
+
+    function closeModal() {
+        document.getElementById('modal-bg').classList.remove('open');
+    }
+
+    async function saveUser() {
+        const email = document.getElementById('f-email').value.trim().toLowerCase();
+        const name = document.getElementById('f-name').value.trim();
+        const password = document.getElementById('f-password').value;
+        const role = document.getElementById('f-role').value;
+        const allowed_media = Array.from(document.querySelectorAll('#f-media input:checked'))
+            .map(c => c.value);
+
+        if (!email) { showToast('Email je obvezen'); return; }
+
+        const isEdit = !!_editingEmail;
+        const body = { name, role, allowed_media };
+        if (password) body.password = password;
+        if (!isEdit) {
+            body.email = email;
+            if (!password || password.length < 6) {
+                showToast('Geslo mora imeti vsaj 6 znakov');
+                return;
+            }
+        }
+
+        const url = isEdit ? '/api/users/' + encodeURIComponent(email) : '/api/users';
+        const method = isEdit ? 'PATCH' : 'POST';
+
+        try {
+            const resp = await fetch(url, {
+                method,
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(body)
+            });
+            if (resp.ok) {
+                showToast(isEdit ? 'Posodobljen' : 'Dodan');
+                closeModal();
+                loadUsers();
+            } else {
+                const txt = await resp.text();
+                let msg = 'Napaka';
+                try { msg = JSON.parse(txt).error || msg; } catch(e) { msg = txt.substring(0, 200); }
+                showToast(msg);
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    async function deleteUser(email) {
+        if (!confirm(`Pobriši uporabnika ${email}?`)) return;
+        try {
+            const resp = await fetch('/api/users/' + encodeURIComponent(email), { method: 'DELETE' });
+            if (resp.ok) {
+                showToast('Pobrisan');
+                loadUsers();
+            } else {
+                const d = await resp.json();
+                showToast(d.error || 'Napaka');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    document.getElementById('modal-bg').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeModal();
+    });
+
+    loadUsers();
+</script>
+
+</body>
+</html>

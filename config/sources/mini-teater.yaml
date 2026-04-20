@@ -1,0 +1,25 @@
+source:
+  id: "mini-teater"
+  name: "Mini teater"
+  base_url: "https://www.mini-teater.si"
+  list_url: "https://www.mini-teater.si/si/articles/1/spored-predstav"
+  region: "ljubljana"
+
+  parser_type: "manual"
+
+  # Eksperimentalno gledališče, Križevniška 1
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

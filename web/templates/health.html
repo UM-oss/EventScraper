@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Source Health — Event Scraper</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #f5f7fa; margin: 0; padding: 0; color: #333; }
+        .header { background: #1a73e8; color: white; padding: 16px 24px; display: flex; gap: 20px; align-items: center; }
+        .header h1 { margin: 0; font-size: 20px; }
+        .header a { color: white; text-decoration: none; opacity: 0.85; }
+        .container { max-width: 1200px; margin: 24px auto; padding: 0 24px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+        .stat-card { background: white; border-radius: 8px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .stat-label { font-size: 12px; color: #666; text-transform: uppercase; }
+        .stat-value { font-size: 28px; font-weight: 600; color: #1a73e8; margin-top: 4px; }
+        .stat-value.warn { color: #f57c00; }
+        .stat-value.error { color: #d32f2f; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+        th { background: #f5f7fa; font-weight: 600; color: #555; font-size: 12px; text-transform: uppercase; }
+        td.status-healthy { color: #2e7d32; font-weight: 600; }
+        td.status-degraded { color: #f57c00; font-weight: 600; }
+        td.status-broken { color: #d32f2f; font-weight: 600; }
+        td.status-unknown, td.status-manual { color: #999; }
+        .num { text-align: right; font-variant-numeric: tabular-nums; }
+        .err-msg { color: #d32f2f; font-size: 11px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>🩺 Source Health</h1>
+    <a href="/">← Nazaj na dashboard</a>
+    <span style="margin-left:auto; opacity:0.85; font-size:13px;">Osveženo: <span id="ts"></span></span>
+</div>
+
+<div class="container">
+    <div class="stats-grid" id="stats"></div>
+    <table>
+        <thead>
+            <tr>
+                <th>Vir</th>
+                <th>Parser</th>
+                <th>Status</th>
+                <th class="num">Zadnji uspeh</th>
+                <th class="num">Dogodki</th>
+                <th class="num">Trajanje</th>
+                <th class="num">Napake zaporedoma</th>
+                <th>Zadnja napaka</th>
+            </tr>
+        </thead>
+        <tbody id="health-tbody"></tbody>
+    </table>
+</div>
+
+<script>
+    function _fmt(iso) {
+        if (!iso) return '—';
+        try {
+            const d = new Date(iso);
+            const pad = n => n.toString().padStart(2, '0');
+            return pad(d.getDate()) + '.' + pad(d.getMonth()+1) + '. ' +
+                   pad(d.getHours()) + ':' + pad(d.getMinutes());
+        } catch (e) { return '—'; }
+    }
+
+    async function load() {
+        const [healthResp, metricsResp] = await Promise.all([
+            fetch('/api/health'),
+            fetch('/api/metrics'),
+        ]);
+        const health = await healthResp.json();
+        const metrics = (await metricsResp.json()).metrics || {};
+
+        // Stats
+        const statsEl = document.getElementById('stats');
+        const cards = [
+            ['Skupaj virov', health.sources.length],
+            ['Zdravi', health.sources.filter(s => s.status === 'healthy').length],
+            ['Degraded', health.sources.filter(s => s.status === 'degraded').length, 'warn'],
+            ['Pokvarjeni', metrics.sources_broken || 0, 'error'],
+            ['Aktivni dogodki', metrics.events_active || 0],
+            ['Neaktivni', metrics.events_inactive || 0],
+            ['Scrape v 24h', metrics.scrape_runs_24h || 0],
+            ['Novi v 24h', metrics.events_new_24h || 0],
+        ];
+        statsEl.innerHTML = cards.map(([label, val, cls]) =>
+            `<div class="stat-card">
+                <div class="stat-label">${label}</div>
+                <div class="stat-value ${cls || ''}">${val}</div>
+            </div>`).join('');
+
+        // Tabela
+        const tbody = document.getElementById('health-tbody');
+        const sorted = [...health.sources].sort((a, b) => {
+            const order = {broken: 0, degraded: 1, unknown: 2, healthy: 3, manual: 4};
+            return (order[a.status] ?? 99) - (order[b.status] ?? 99);
+        });
+        tbody.innerHTML = sorted.map(s => `
+            <tr>
+                <td><strong>${s.name || s.id}</strong><br/><small style="color:#999;">${s.id}</small></td>
+                <td>${s.parser_type || '—'}</td>
+                <td class="status-${s.status || 'unknown'}">${s.status || 'unknown'}</td>
+                <td class="num">${_fmt(s.last_check)}</td>
+                <td class="num">${s.last_events_found || 0}</td>
+                <td class="num">${s.avg_duration_ms ? Math.round(s.avg_duration_ms) + ' ms' : '—'}</td>
+                <td class="num" style="color:${s.consecutive_errors > 0 ? '#d32f2f' : '#999'}">${s.consecutive_errors || 0}</td>
+                <td class="err-msg" title="${(s.last_error || '').replace(/"/g, '&quot;')}">${s.last_error || '—'}</td>
+            </tr>
+        `).join('');
+
+        document.getElementById('ts').textContent = _fmt(new Date().toISOString());
+    }
+
+    load();
+    setInterval(load, 30000);  // refresh every 30s
+</script>
+
+</body>
+</html>

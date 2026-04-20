@@ -1,0 +1,44 @@
+source:
+  id: "ljubljana-si"
+  name: "Mestna občina Ljubljana - Dogodki"
+  base_url: "https://www.ljubljana.si"
+  list_url: "https://www.ljubljana.si/sl/aktualno/dogodki"
+  feed_url: "https://www.ljubljana.si/sl/aktualno/dogodki/rss"
+  region: "mol"
+
+  # Prioritetno uporabljamo RSS feed - zanesljivejši od HTML scrapinga
+  parser_type: "rss"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # RSS polja: title, link, description (lokacija), pubDate
+  # Fallback HTML selektorji (če RSS odpove):
+  list_selectors:
+    event_card: "ul.list-events > li.list-type--card--item"
+    title: "h3.title a"
+    date: ".date-from"
+    image: "picture img"
+    image_attr: "src"
+    detail_link: "h3.title a"
+    detail_link_attr: "href"
+    categories: ".list-tags .list-tags-item span"
+
+  detail_selectors:
+    description: ".content-body, .field--name-body, .rte-content, article .text"
+    location: ".event-location, .location, .field--name-field-location"
+    time: ".date-from, .event-date"
+    price: ".field--name-field-price, .price"
+    organizer: ".field--name-field-organizer, .organizer"
+    district: ".field--name-field-quarter, .taxonomy-terms .list-tags-item"
+    image: "picture img, .item-image img"
+    image_attr: "src"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

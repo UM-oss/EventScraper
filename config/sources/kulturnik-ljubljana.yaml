@@ -1,0 +1,37 @@
+source:
+  id: "kulturnik-ljubljana"
+  name: "Kulturnik.si - Ljubljana"
+  base_url: "https://dogodki.kulturnik.si"
+  list_url: "https://dogodki.kulturnik.si/?where=ljubljana"
+  region: "ljubljana"
+
+  # Kulturnik ima vsak dogodek v svojem <script> tagu kot "var e = {...};"
+  parser_type: "kulturnik"
+
+  # Kulturnik ne podpira klasične paginacije - vse dogodke vrne na eni strani
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # JSON polja v var e = {...}
+  json_fields:
+    title: "summary"
+    date_start: "dbegin"
+    date_end: "dend"
+    time: "hbegin"
+    duration: "duration"
+    location: "location"
+    description: "description"
+    image: "image"
+    url: "url"
+    categories: "categories"
+    organizer: "feed_name"
+    event_id: "nid"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

@@ -1,0 +1,25 @@
+source:
+  id: "visit-pomurje"
+  name: "Visit Pomurje"
+  base_url: "https://visitpomurje.eu"
+  list_url: "https://visitpomurje.eu/en/happenings"
+  region: "pomurje"
+
+  parser_type: "manual"
+
+  # Regionalni turistični portal Pomurje
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

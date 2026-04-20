@@ -1,0 +1,48 @@
+source:
+  id: "kinodvor"
+  name: "Kinodvor"
+  base_url: "https://www.kinodvor.org"
+  list_url: "https://www.kinodvor.org/spored/"
+  region: "ljubljana"
+
+  # Poseben parser za Kinodvor
+  parser_type: "kinodvor"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Struktura:
+  # <div class="day-wrappper">
+  #   <div class="day">tor. 14. 04.</div>
+  #   <div class="card card-schedule-vertical">
+  #     <div class="card-block">
+  #       <p class="mb-2"><small><b>17:50 / Dvorana</b></small></p>
+  #       <a href="..."><h6>Tujec</h6></a>
+  #       <p><small>François Ozon</small></p>
+  #     </div>
+  #   </div>
+  # </div>
+
+  list_selectors:
+    day_wrapper: ".day-wrappper"
+    day_label: ".day"
+    event_card: ".card-block"
+    title: "h6"
+    time_venue: "p.mb-2 b, p.mb-2 small b"
+    detail_link: "a[href*='/film/']"
+    detail_link_attr: "href"
+    director: "p small"
+
+  detail_selectors:
+    description: ".entry-content, .film-description, .content p, article p"
+    image: ".film-poster img, .wp-post-image, article img"
+    image_attr: "src"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

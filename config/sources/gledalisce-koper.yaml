@@ -1,0 +1,25 @@
+source:
+  id: "gledalisce-koper"
+  name: "Gledališče Koper"
+  base_url: "https://gledalisce-koper.si"
+  list_url: "https://gledalisce-koper.si/"
+  region: "primorska"
+
+  parser_type: "manual"
+
+  # Gledališče - spored
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

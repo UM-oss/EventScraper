@@ -1,0 +1,28 @@
+source:
+  id: "ormoz"
+  name: "Občina Ormož - Dogodki"
+  base_url: "https://www.ormoz.si"
+  list_url: "https://www.ormoz.si/dogodki"
+  feed_url: "https://www.ormoz.si/DogodkiRSS"
+  region: "ormoz"
+
+  # RSS feed z dogodki - ima polja: title, description, link, pubDate,
+  # startdate, location, category (Kultura, Šport, Razno, Gledališče...)
+  # ONEMOGOČENO: opisi iz tega vira niso ustrezni (uporabnikova zahteva 18.4.2026)
+  parser_type: "manual"
+  disabled: true
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

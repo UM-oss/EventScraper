@@ -1,0 +1,31 @@
+source:
+  id: "kulturnik-rss-ljubljana"
+  name: "Kulturnik.si - Ljubljana"
+  base_url: "https://dogodki.kulturnik.si"
+  list_url: "https://dogodki.kulturnik.si/?where=Ljubljana"
+  feed_url: "https://dogodki.kulturnik.si/?where=Ljubljana&format=rss"
+  region: "ljubljana"
+
+  parser_type: "kulturnik-rss"
+
+  # RSS feed z iCal razširitvami:
+  # ical:dtstart - datum in ura začetka
+  # ical:location - prizorišče
+  # enclosure - slika (image/jpeg)
+  # dc:source - vir/organizator
+  # ~320 dogodkov na feed
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 1
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

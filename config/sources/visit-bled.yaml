@@ -1,0 +1,25 @@
+source:
+  id: "visit-bled"
+  name: "Visit Bled"
+  base_url: "https://www.bled.si"
+  list_url: "https://www.bled.si/en/events/"
+  region: "gorenjska"
+
+  parser_type: "manual"
+
+  # Turistični portal Bled - 11 tradicionalnih dogodkov letno
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

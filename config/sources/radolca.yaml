@@ -1,0 +1,25 @@
+source:
+  id: "radolca"
+  name: "Radolca - Radovljica"
+  base_url: "https://www.radolca.si"
+  list_url: "https://www.radolca.si/sl/koledar-prireditev"
+  region: "gorenjska"
+
+  parser_type: "manual"
+
+  # JS-rendered koledar, Festival čokolade
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

@@ -1,0 +1,25 @@
+source:
+  id: "gt22"
+  name: "GT22 Maribor"
+  base_url: "https://www.gt22.si"
+  list_url: "https://www.gt22.si/program"
+  region: "maribor"
+
+  parser_type: "manual"
+
+  # Mladinski kulturni center
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

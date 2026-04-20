@@ -1,0 +1,24 @@
+source:
+  id: "kulturnik-rss-maribor"
+  name: "Kulturnik.si - Maribor"
+  base_url: "https://dogodki.kulturnik.si"
+  list_url: "https://dogodki.kulturnik.si/?where=Maribor"
+  feed_url: "https://dogodki.kulturnik.si/?where=Maribor&format=rss"
+  region: "maribor"
+
+  parser_type: "kulturnik-rss"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 1
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

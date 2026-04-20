@@ -1,0 +1,32 @@
+source:
+  id: "dolenjskilist"
+  name: "Dolenjski list - Dogodki"
+  base_url: "https://dolenjskilist.svet24.si"
+  list_url: "https://dolenjskilist.svet24.si/dogodki"
+  region: "dolenjska"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Selectors guessed - news portal (svet24 platform)
+  list_selectors:
+    event_card: ".event-item, article, .card"  # guessed
+    title: "h2 a, h3 a, .title a"
+    date: ".date, .event-date"
+    image: "img"
+    image_attr: "src"
+    detail_link: "h2 a, h3 a"
+    detail_link_attr: "href"
+
+  detail_selectors:
+    description: ".content, .article-content"
+    location: ".location, .event-location"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

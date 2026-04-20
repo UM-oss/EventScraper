@@ -1,0 +1,25 @@
+source:
+  id: "opera-ljubljana"
+  name: "SNG Opera in balet Ljubljana"
+  base_url: "https://www.opera.si"
+  list_url: "https://www.opera.si/"
+  region: "ljubljana"
+
+  parser_type: "manual"
+
+  # Opera, balet, koncerti v Cankarjevem domu
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

@@ -1,0 +1,53 @@
+source:
+  id: "mgml"
+  name: "MGML - Mestna galerija in muzej Ljubljana"
+  base_url: "https://www.mgml.si"
+  list_url: "https://www.mgml.si/sl/dogodki/"
+  region: "ljubljana"
+
+  # Brez klasične paginacije - vsi dogodki na eni strani
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Struktura:
+  # <div class="event__item">
+  #   <div class="event__info">
+  #     <div class="event__date"><div class="day">Torek</div><div class="date">14</div><div class="month">Apr 2026</div></div>
+  #     <div class="event__type_time_location">
+  #       <div class="event__type">Voden ogled</div>
+  #       <div class="event__time">• 17:00</div>
+  #       <div class="event__title"><a href="...">Naslov</a></div>
+  #       <div class="event__blurb">Opis...</div>
+  #       <span class="event__location">Galerija Vžigalica</span>
+  #     </div>
+  #   </div>
+  # </div>
+
+  list_selectors:
+    event_card: ".event__item"
+    title: ".event__title a"
+    date: ".event__date"
+    image: ".event__image img"
+    image_attr: "src"
+    detail_link: ".event__title a"
+    detail_link_attr: "href"
+    description: ".event__blurb"
+    categories: ".event__type"
+
+  detail_selectors:
+    description: ".event__description, .event-detail__description, .content, article p"
+    location: ".event__location, .location"
+    time: ".event__time"
+    price: ".event__price, .price"
+    organizer: ".event__organizer, .organizer"
+    image: ".event__image img, .event-detail__image img, article img"
+    image_attr: "src"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

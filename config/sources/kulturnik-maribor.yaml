@@ -1,0 +1,35 @@
+source:
+  id: "kulturnik-maribor"
+  name: "Kulturnik.si - Maribor"
+  base_url: "https://dogodki.kulturnik.si"
+  list_url: "https://dogodki.kulturnik.si/?where=Maribor"
+  region: "maribor"
+
+  parser_type: "kulturnik"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # JSON polja v var e = {...} - same as kulturnik-ljubljana
+  json_fields:
+    title: "summary"
+    date_start: "dbegin"
+    date_end: "dend"
+    time: "hbegin"
+    duration: "duration"
+    location: "location"
+    description: "description"
+    image: "image"
+    url: "url"
+    categories: "categories"
+    organizer: "feed_name"
+    event_id: "nid"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

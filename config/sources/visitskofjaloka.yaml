@@ -1,0 +1,41 @@
+source:
+  id: "visitskofjaloka"
+  name: "Visit Škofja Loka"
+  base_url: "https://www.visitskofjaloka.si"
+  list_url: "https://www.visitskofjaloka.si/si/dogodki"
+  region: "gorenjska"
+
+  parser_type: "visitskofjaloka"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Struktura:
+  # <div class="event-list-day">
+  #   <h2 class="event-list-day-date">15. april 2026</h2>  (ali brez h2, datum kot text)
+  #   <div class="event-list-item">
+  #     <div class="event-time">17.00-19.00</div>
+  #     <div class="event-content">
+  #       <h2>Naslov</h2>
+  #       <div class="event-details">
+  #         <span class="event-details-location">Škofja Loka</span>
+  #         <span class="event-details-address">Krajevna knjižnica</span>
+  #         <span class="event-details-type">Družabne igre</span>
+  #       </div>
+  #       <div class="event-description">Opis...</div>
+  #     </div>
+  #     <div class="event-thumbnail"><img src="..."></div>
+  #   </div>
+  # </div>
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

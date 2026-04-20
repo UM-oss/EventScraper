@@ -1,0 +1,32 @@
+source:
+  id: "visitradgona"
+  name: "Visit Radgona"
+  base_url: "https://visitradgona.si"
+  list_url: "https://visitradgona.si/vse-novice/"
+  region: "pomurska"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Selectors guessed - tourism website, likely WordPress
+  list_selectors:
+    event_card: "article, .post-item, .news-item"  # guessed
+    title: "h2 a, h3 a, .entry-title a"
+    date: ".date, .entry-date, .post-date"
+    image: "img, .post-thumbnail img"
+    image_attr: "src"
+    detail_link: "h2 a, h3 a"
+    detail_link_attr: "href"
+
+  detail_selectors:
+    description: ".entry-content, .post-content"
+    location: ".location, .event-location"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

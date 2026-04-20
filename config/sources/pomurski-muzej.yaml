@@ -1,0 +1,25 @@
+source:
+  id: "pomurski-muzej"
+  name: "Pomurski muzej"
+  base_url: "https://www.pomurski-muzej.si"
+  list_url: "https://www.pomurski-muzej.si/pages/en/events.php"
+  region: "pomurje"
+
+  parser_type: "manual"
+
+  # Razstave, predavanja
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

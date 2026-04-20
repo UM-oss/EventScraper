@@ -1,0 +1,1557 @@
+<!DOCTYPE html>
+<html lang="sl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Event Scraper</title>
+    <style>
+        /* ==========================================================
+           DESIGN SYSTEM (CSS Custom Properties)
+           ========================================================== */
+        :root {
+            /* Barve — minimalistično, semantično */
+            --bg: #fafbfc;
+            --surface: #ffffff;
+            --surface-2: #f4f6f8;
+            --border: #e3e8ee;
+            --border-strong: #c9d1d9;
+
+            --text: #1a1d1f;
+            --text-muted: #5e6772;
+            --text-subtle: #8a939e;
+
+            --primary: #2563eb;       /* modra — primarna akcija */
+            --primary-hover: #1d4ed8;
+            --primary-bg: #eff6ff;
+
+            --success: #16a34a;       /* zelena — uspeh, approved */
+            --success-bg: #f0fdf4;
+            --warning: #d97706;       /* oranžna — opozorilo */
+            --warning-bg: #fffbeb;
+            --danger: #dc2626;        /* rdeča — napaka, skip */
+            --danger-bg: #fef2f2;
+            --neutral: #6b7280;       /* siva */
+
+            /* Razmak */
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 24px;
+            --space-6: 32px;
+            --space-7: 48px;
+
+            /* Tipografija */
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+            --font-mono: "SF Mono", Monaco, "Cascadia Code", monospace;
+            --text-xs: 11px;
+            --text-sm: 13px;
+            --text-base: 14px;
+            --text-md: 15px;
+            --text-lg: 17px;
+            --text-xl: 22px;
+
+            /* Sence */
+            --shadow-sm: 0 1px 2px rgba(0,0,0,0.04), 0 1px 1px rgba(0,0,0,0.03);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04);
+            --shadow-lg: 0 12px 28px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.04);
+            --shadow-focus: 0 0 0 3px rgba(37,99,235,0.18);
+
+            /* Radius */
+            --r-sm: 6px;
+            --r-md: 10px;
+            --r-lg: 14px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html, body {
+            font-family: var(--font-sans);
+            font-size: var(--text-base);
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a { color: var(--primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        button {
+            font-family: inherit;
+            font-size: inherit;
+            cursor: pointer;
+        }
+
+        /* ==========================================================
+           LAYOUT
+           ========================================================== */
+        .app {
+            min-height: 100vh;
+        }
+
+        .topbar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: var(--space-3) var(--space-5);
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-weight: 700;
+            font-size: var(--text-md);
+            color: var(--text);
+            text-decoration: none;
+        }
+        .brand-dot {
+            width: 10px; height: 10px;
+            background: var(--primary);
+            border-radius: 50%;
+        }
+
+        .topbar-stats {
+            display: flex;
+            gap: var(--space-4);
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+            margin-left: var(--space-5);
+        }
+        .topbar-stats strong {
+            color: var(--text);
+            font-weight: 600;
+            margin-left: var(--space-1);
+        }
+        .topbar-spacer { flex: 1; }
+
+        .topbar-link {
+            color: var(--text-muted);
+            font-size: var(--text-sm);
+            text-decoration: none;
+            padding: var(--space-2) var(--space-3);
+            border-radius: var(--r-sm);
+            transition: background 0.15s;
+        }
+        .topbar-link:hover {
+            background: var(--surface-2);
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        /* ==========================================================
+           FILTRI
+           ========================================================== */
+        .filter-bar {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: var(--space-3) var(--space-5);
+            display: flex;
+            gap: var(--space-3);
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .input,
+        .select {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            padding: 7px 10px;
+            font-size: var(--text-sm);
+            color: var(--text);
+            font-family: inherit;
+            transition: border-color 0.15s, box-shadow 0.15s;
+            min-width: 130px;
+        }
+        .input:focus,
+        .select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-focus);
+        }
+        .input.search { padding-left: 30px; min-width: 200px;
+            background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238a939e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E") no-repeat 10px center;
+        }
+
+        .filter-divider {
+            width: 1px; height: 24px;
+            background: var(--border);
+            margin: 0 var(--space-1);
+        }
+
+        /* ==========================================================
+           BUTTONS
+           ========================================================== */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 14px;
+            border: 1px solid transparent;
+            border-radius: var(--r-sm);
+            font-size: var(--text-sm);
+            font-weight: 500;
+            line-height: 1;
+            cursor: pointer;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn:focus-visible {
+            outline: none;
+            box-shadow: var(--shadow-focus);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover { background: var(--primary-hover); }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        .btn-success:hover { filter: brightness(0.95); }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        .btn-danger:hover { filter: brightness(0.95); }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+        .btn-warning:hover { filter: brightness(0.95); }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border-color: var(--border);
+        }
+        .btn-ghost:hover {
+            background: var(--surface-2);
+            color: var(--text);
+            border-color: var(--border-strong);
+        }
+
+        .btn-icon {
+            padding: 7px;
+            min-width: 32px;
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: var(--text-xs);
+        }
+
+        .btn[disabled] {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ==========================================================
+           SCRAPE TOOLBAR (hidden until needed)
+           ========================================================== */
+        .scrape-toolbar {
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--border);
+            padding: var(--space-2) var(--space-5);
+            display: flex;
+            gap: var(--space-2);
+            align-items: center;
+            flex-wrap: wrap;
+            font-size: var(--text-sm);
+        }
+        .scrape-toolbar-label {
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-right: var(--space-2);
+        }
+
+        .day-pill {
+            padding: 5px 12px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            font-size: var(--text-xs);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .day-pill:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+            background: var(--primary-bg);
+        }
+
+        /* Live status pill v topbarju med scrape-om */
+        .scrape-status {
+            display: none;
+            align-items: center;
+            gap: var(--space-2);
+            padding: 5px 12px;
+            background: var(--primary-bg);
+            color: var(--primary);
+            border-radius: 999px;
+            font-size: var(--text-xs);
+            font-weight: 500;
+        }
+        .scrape-status.active { display: inline-flex; }
+        .scrape-status .dot {
+            width: 6px; height: 6px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        /* Progress bar (gladek, brez utripanja) */
+        .progress-strip {
+            display: none;
+            height: 3px;
+            background: var(--surface-2);
+            position: sticky;
+            top: 56px;
+            z-index: 39;
+            overflow: hidden;
+        }
+        .progress-strip.active { display: block; }
+        .progress-strip .fill {
+            height: 100%;
+            background: var(--primary);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* ==========================================================
+           CONTAINER
+           ========================================================== */
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: var(--space-5);
+        }
+
+        .results-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--space-4);
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+        }
+
+        /* ==========================================================
+           BULK BAR (sticky pri vrhu rezultatov)
+           ========================================================== */
+        .bulk-bar {
+            display: none;
+            position: sticky;
+            top: 56px;
+            z-index: 30;
+            background: var(--text);
+            color: white;
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--r-md);
+            margin-bottom: var(--space-4);
+            align-items: center;
+            gap: var(--space-3);
+            box-shadow: var(--shadow-lg);
+            animation: slideIn 0.2s ease;
+        }
+        .bulk-bar.active { display: flex; }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .bulk-bar-count {
+            font-weight: 600;
+            margin-right: auto;
+        }
+        .bulk-bar .btn-ghost {
+            background: rgba(255,255,255,0.08);
+            color: white;
+            border-color: rgba(255,255,255,0.2);
+        }
+        .bulk-bar .btn-ghost:hover {
+            background: rgba(255,255,255,0.16);
+            color: white;
+        }
+
+        /* ==========================================================
+           EVENT CARD — modern, čisto, hover-revealed actions
+           ========================================================== */
+        .event-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            margin-bottom: var(--space-3);
+            overflow: hidden;
+            transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+            position: relative;
+        }
+        .event-card:hover {
+            border-color: var(--border-strong);
+            box-shadow: var(--shadow-md);
+        }
+        .event-card.selected {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+        }
+        .event-card.done {
+            opacity: 0.55;
+        }
+
+        .event-card-inner {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: var(--space-4);
+            padding: var(--space-4);
+        }
+
+        /* Slika */
+        .event-image {
+            width: 140px;
+            height: 105px;
+            border-radius: var(--r-sm);
+            overflow: hidden;
+            background: var(--surface-2);
+            position: relative;
+            flex-shrink: 0;
+        }
+        .event-image img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .event-image-placeholder {
+            width: 100%; height: 100%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            color: var(--text-subtle);
+            font-size: var(--text-xs);
+            gap: 6px;
+        }
+        .event-image-badge {
+            position: absolute;
+            bottom: 4px; left: 4px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        /* Content */
+        .event-content {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: var(--space-3);
+            margin-bottom: var(--space-2);
+        }
+
+        .event-title {
+            font-size: var(--text-md);
+            font-weight: 600;
+            color: var(--text);
+            line-height: 1.35;
+            margin: 0;
+        }
+
+        .event-pills {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: var(--space-2);
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: var(--text-xs);
+            font-weight: 500;
+            line-height: 1.3;
+        }
+        .pill-default { background: var(--surface-2); color: var(--text-muted); }
+        .pill-primary { background: var(--primary-bg); color: var(--primary); }
+        .pill-success { background: var(--success-bg); color: var(--success); }
+        .pill-warning { background: var(--warning-bg); color: var(--warning); }
+        .pill-danger  { background: var(--danger-bg); color: var(--danger); }
+        .pill-inactive { background: #f3f4f6; color: var(--text-subtle); }
+
+        .event-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-3);
+            margin-bottom: var(--space-2);
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+        }
+        .event-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .event-meta-item .icon { color: var(--text-subtle); }
+        .event-meta-add {
+            color: var(--primary);
+            cursor: pointer;
+            border-bottom: 1px dashed currentColor;
+            font-size: var(--text-xs);
+        }
+        .event-meta-add:hover { color: var(--primary-hover); }
+
+        .event-description {
+            font-size: var(--text-sm);
+            color: var(--text-muted);
+            margin: var(--space-2) 0;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .event-description-empty {
+            font-size: var(--text-xs);
+            color: var(--text-subtle);
+            font-style: italic;
+            margin: var(--space-2) 0;
+        }
+        .ai-badge {
+            display: inline-block;
+            background: var(--warning-bg);
+            color: var(--warning);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        /* Akcije: 2 primarni gumba + dropdown */
+        .event-actions {
+            display: flex;
+            gap: var(--space-2);
+            align-items: center;
+            margin-top: var(--space-2);
+        }
+        .event-actions-spacer { flex: 1; }
+        .event-source {
+            font-size: var(--text-xs);
+            color: var(--text-subtle);
+            font-family: var(--font-mono);
+        }
+
+        /* Bulk checkbox - Fant zgornji desni */
+        .event-checkbox {
+            position: absolute;
+            top: 12px; right: 12px;
+            width: 22px; height: 22px;
+            border: 2px solid var(--border-strong);
+            border-radius: 4px;
+            background: var(--surface);
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.15s, border-color 0.15s, background 0.15s;
+            z-index: 5;
+            appearance: none;
+            -webkit-appearance: none;
+        }
+        .event-card:hover .event-checkbox,
+        .event-checkbox:checked,
+        body.bulk-mode .event-checkbox { opacity: 1; }
+        .event-checkbox:checked {
+            background: var(--primary);
+            border-color: var(--primary);
+        }
+        .event-checkbox:checked::after {
+            content: '✓';
+            color: white;
+            font-size: 14px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        /* Dropdown menu (več…) */
+        .menu-wrap { position: relative; }
+        .menu {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 4px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-sm);
+            box-shadow: var(--shadow-lg);
+            min-width: 200px;
+            padding: 6px;
+            z-index: 20;
+        }
+        .menu.open { display: block; }
+        .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 4px;
+            font-size: var(--text-sm);
+            color: var(--text);
+            cursor: pointer;
+            background: transparent;
+            border: none;
+            width: 100%;
+            text-align: left;
+        }
+        .menu-item:hover { background: var(--surface-2); }
+        .menu-divider {
+            height: 1px;
+            background: var(--border);
+            margin: 4px 0;
+        }
+
+        /* ==========================================================
+           EMPTY STATE
+           ========================================================== */
+        .empty-state {
+            text-align: center;
+            padding: var(--space-7) var(--space-5);
+            background: var(--surface);
+            border: 1px dashed var(--border-strong);
+            border-radius: var(--r-md);
+            color: var(--text-muted);
+        }
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: var(--space-3);
+            opacity: 0.4;
+        }
+        .empty-state h3 {
+            font-size: var(--text-lg);
+            color: var(--text);
+            margin-bottom: var(--space-2);
+        }
+        .empty-state p {
+            font-size: var(--text-sm);
+            margin-bottom: var(--space-4);
+        }
+
+        /* ==========================================================
+           PAGINATION
+           ========================================================== */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: var(--space-1);
+            margin: var(--space-5) 0;
+            flex-wrap: wrap;
+        }
+
+        /* ==========================================================
+           TOAST
+           ========================================================== */
+        .toast {
+            position: fixed;
+            bottom: var(--space-5);
+            right: var(--space-5);
+            background: var(--text);
+            color: white;
+            padding: var(--space-3) var(--space-4);
+            border-radius: var(--r-sm);
+            font-size: var(--text-sm);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.25s;
+            box-shadow: var(--shadow-lg);
+            max-width: 360px;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ==========================================================
+           SKELETON LOADING
+           ========================================================== */
+        .skel-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--r-md);
+            padding: var(--space-4);
+            margin-bottom: var(--space-3);
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: var(--space-4);
+        }
+        .skel { background: linear-gradient(90deg, #eef2f6 25%, #f6f8fa 50%, #eef2f6 75%);
+                background-size: 200% 100%;
+                animation: shimmer 1.4s infinite;
+                border-radius: var(--r-sm); }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .skel-img { width: 140px; height: 105px; }
+        .skel-line { height: 12px; margin-bottom: 8px; }
+        .skel-line.short { width: 60%; }
+        .skel-line.medium { width: 85%; }
+
+        /* ==========================================================
+           MODAL (za uredi pole)
+           ========================================================== */
+        .field-edit-input {
+            background: var(--primary-bg);
+            border: 1px solid var(--primary);
+            border-radius: var(--r-sm);
+            padding: 4px 8px;
+            font-size: var(--text-sm);
+            font-family: inherit;
+            min-width: 200px;
+            outline: none;
+        }
+
+        /* ==========================================================
+           RESPONSIVE
+           ========================================================== */
+        @media (max-width: 768px) {
+            .topbar { padding: var(--space-3); flex-wrap: wrap; }
+            .topbar-stats { margin-left: 0; }
+            .filter-bar { padding: var(--space-3); }
+            .event-card-inner { grid-template-columns: 1fr; }
+            .event-image { width: 100%; height: 180px; }
+            .container { padding: var(--space-3); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app">
+
+<!-- ============== TOPBAR ============== -->
+<div class="topbar">
+    <a href="/" class="brand">
+        <span class="brand-dot"></span>
+        Event Scraper
+    </a>
+    <div class="topbar-stats">
+        <div>Aktivni: <strong id="stat-active">{{ total_new }}</strong></div>
+        <div>Trenutni izbor: <strong id="stat-current">{{ events|length }}</strong></div>
+        {% if last_scrape %}
+        <div>Zadnji scrape: <strong id="stat-last">{{ last_scrape_local.strftime('%d.%m. %H:%M') if last_scrape_local else '—' }}</strong></div>
+        {% endif %}
+    </div>
+    <div class="scrape-status" id="scrape-status">
+        <span class="dot"></span>
+        <span id="scrape-status-text">Scraping...</span>
+        <button class="btn btn-sm btn-ghost" onclick="cancelScrape()" id="cancel-btn"
+                style="background:transparent;border:none;color:var(--primary);padding:0 0 0 8px;">⏹ Ustavi</button>
+    </div>
+    <div class="topbar-spacer"></div>
+    <a href="/health" class="topbar-link" title="Source Health">🩺 Viri</a>
+    {% if is_admin_user %}
+    <a href="/uporabniki" class="topbar-link" title="Upravljanje uporabnikov">👥 Uporabniki</a>
+    {% endif %}
+    <a href="/logout" class="topbar-link">Odjava</a>
+</div>
+
+<div class="progress-strip" id="progress-strip">
+    <div class="fill" id="progress-fill"></div>
+</div>
+
+<!-- ============== FILTRI (bolj kompakten) ============== -->
+<form class="filter-bar" method="get" action="/" id="filter-form">
+    <select name="media" class="select" onchange="this.form.submit()" title="Filtriraj po mediju">
+        <option value="">Vsi mediji</option>
+        {% for m in media_outlets %}
+        <option value="{{ m.id }}" {{ 'selected' if m.id == current_media }}>{{ m.name }}</option>
+        {% endfor %}
+    </select>
+
+    <select name="status" class="select" onchange="this.form.submit()" title="Filtriraj po statusu">
+        <option value="new" {{ 'selected' if current_status == 'new' }}>Novi</option>
+        <option value="approved" {{ 'selected' if current_status == 'approved' }}>Obdelani</option>
+        <option value="skipped" {{ 'selected' if current_status == 'skipped' }}>Preskočeni</option>
+        <option value="published" {{ 'selected' if current_status == 'published' }}>Že na portalu</option>
+        <option value="all" {{ 'selected' if current_status == 'all' }}>Vsi statusi</option>
+    </select>
+
+    <input type="date" name="from" class="input" value="{{ date_from }}" onchange="this.form.submit()" title="Od datuma">
+    <span style="color:var(--text-subtle);font-size:13px;">→</span>
+    <input type="date" name="to" class="input" value="{{ date_to }}" onchange="this.form.submit()" title="Do datuma">
+
+    <input type="search" name="q" class="input search" value="{{ current_search }}" placeholder="Iskanje..." onkeydown="if(event.key==='Enter')this.form.submit()">
+</form>
+
+<!-- ============== SCRAPE TOOLBAR ============== -->
+<div class="scrape-toolbar">
+    <span class="scrape-toolbar-label">Osveži dogodke za naprej:</span>
+    <button type="button" class="day-pill" onclick="runScrape(7)">7 dni</button>
+    <button type="button" class="day-pill" onclick="runScrape(14)">14 dni</button>
+    <button type="button" class="day-pill" onclick="runScrape(30)">30 dni</button>
+    <button type="button" class="day-pill" onclick="runScrape(60)">60 dni</button>
+    <button type="button" class="day-pill" onclick="runScrape(90)">90 dni</button>
+    <span style="color:var(--text-subtle);font-size:12px;margin-left:8px;" id="scrape-scope-hint">(vse vire)</span>
+    <div class="filter-divider"></div>
+    <button type="button" class="day-pill" onclick="runEnrichment()" title="Naknadno poišči manjkajoče opise in slike za že shranjene dogodke">
+        ✨ Dokončaj enrichment
+    </button>
+    <button type="button" class="day-pill" onclick="runPublishedCheck()" title="Preveri katere dogodke smo morda že imeli na svojih portalih in jih označi kot 'objavljeno' (izgine iz 'Novi')">
+        🗓 Preveri portale
+    </button>
+</div>
+
+<!-- ============== CONTAINER ============== -->
+<div class="container">
+
+    <!-- Scrape result banner -->
+    <div id="scrape-summary-banner" style="display:none;background:linear-gradient(135deg,#dbeafe 0%,#eff6ff 100%);border:1px solid #93c5fd;border-radius:14px;padding:16px 20px;margin-bottom:20px;align-items:center;gap:14px;">
+        <div style="font-size:32px;line-height:1;">✨</div>
+        <div style="flex:1;">
+            <div style="font-weight:600;color:#1e3a8a;font-size:15px;margin-bottom:4px;" id="banner-title">Avtomatski scrape končan</div>
+            <div style="color:#1e40af;font-size:13px;" id="banner-detail"></div>
+        </div>
+        <button onclick="dismissSummaryBanner()" title="Zapri (zaznamuj kot pregledano)"
+                aria-label="Zapri"
+                style="background:transparent;border:none;color:#1e40af;font-size:22px;line-height:1;cursor:pointer;padding:6px 10px;border-radius:6px;transition:background 0.15s;"
+                onmouseover="this.style.background='rgba(255,255,255,0.5)'"
+                onmouseout="this.style.background='transparent'">×</button>
+    </div>
+
+    <div class="results-meta">
+        <span><strong id="result-count">{{ total_events }}</strong> dogodkov{% if total_pages > 1 %} • stran {{ page_num }}/{{ total_pages }}{% endif %}</span>
+    </div>
+
+    <!-- Bulk bar (sticky kjer je) -->
+    <div class="bulk-bar" id="bulk-bar">
+        <span class="bulk-bar-count"><span id="bulk-count">0</span> izbranih</span>
+        <button class="btn btn-success btn-sm" onclick="bulkAction('approved')">✓ Obdelano</button>
+        <button class="btn btn-warning btn-sm" onclick="bulkAction('skipped')">⊘ Preskoči</button>
+        <button class="btn btn-ghost btn-sm" onclick="bulkAction('featured')">⭐ Izpostavi</button>
+        <button class="btn btn-ghost btn-sm" onclick="clearBulkSelection()">Prekliči</button>
+    </div>
+
+    <div id="event-list">
+    {% if events|length == 0 %}
+    <div class="empty-state">
+        <div class="empty-state-icon">🔍</div>
+        <h3>Ni dogodkov za izbrane filtre</h3>
+        <p>Poskusi spremeniti filter ali sproži novo osveževanje.</p>
+        <button class="btn btn-primary" onclick="runScrape(30)">Osveži (30 dni)</button>
+    </div>
+    {% endif %}
+
+    {% for event in events %}
+    <div class="event-card{% if not event.is_active %} done{% endif %}" id="event-{{ event.id }}" data-event-id="{{ event.id }}" data-version="{{ event.version }}">
+        <input type="checkbox" class="event-checkbox bulk-select" data-event-id="{{ event.id }}" onchange="updateBulkBar()" onclick="event.stopPropagation();" aria-label="Izberi">
+
+        {% set img_src = event.image_url %}
+        {% if img_src and ('fbsbx.com' in img_src or 'fbcdn.net' in img_src or 'facebook.com' in img_src) %}
+            {% set img_src = '/api/image-proxy?url=' ~ (event.image_url|urlencode) %}
+        {% endif %}
+
+        <div class="event-card-inner">
+            <div class="event-image">
+                {% if event.image_url %}
+                <a href="{{ event.image_url }}" target="_blank" rel="noopener">
+                    <img src="{{ img_src }}" alt="" loading="lazy"
+                         onerror="this.parentElement.parentElement.innerHTML='<div class=event-image-placeholder>Slika nedosegljiva<button class=\'btn btn-sm btn-ghost\' onclick=\'fetchImage({{ event.id }})\'>Poišči</button></div>'">
+                </a>
+                {% if event.image_source == 'fallback' %}<div class="event-image-badge">Simbolna</div>{% endif %}
+                {% else %}
+                <div class="event-image-placeholder">
+                    <span>Brez slike</span>
+                    <button class="btn btn-sm btn-ghost" onclick="fetchImage({{ event.id }})">Poišči</button>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="event-content">
+                <div class="event-header">
+                    <h3 class="event-title">
+                        {{ event.title }}
+                        <button onclick="copyField('{{ event.title|e }}', 'Naslov')" title="Kopiraj naslov"
+                                style="background:none;border:none;cursor:pointer;color:var(--text-subtle);padding:2px 4px;font-size:12px;opacity:0.5;transition:opacity 0.15s;"
+                                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">📋</button>
+                    </h3>
+                </div>
+
+                <div class="event-pills">
+                    {% if event.event_type %}<span class="pill pill-default">{{ event.event_type }}</span>{% endif %}
+                    {% if event.region %}<span class="pill pill-default">{{ event.region }}</span>{% endif %}
+                </div>
+
+                <div class="event-meta">
+                    {% if event.date_start %}
+                    <div class="event-meta-item" title="Datum">
+                        <span class="icon">📅</span>
+                        <span>{{ event.date_start.strftime('%d. %m.') }}{% if event.time_start %} ob {{ event.time_start[:5] }}{% endif %}</span>
+                    </div>
+                    {% endif %}
+                    {% if event.location %}
+                    <div class="event-meta-item" title="Prizorišče">
+                        <span class="icon">📍</span>
+                        <span>{{ event.location }}</span>
+                        <button onclick="copyField('{{ event.location|e }}', 'Prizorišče')" title="Kopiraj prizorišče"
+                                style="background:none;border:none;cursor:pointer;color:var(--text-subtle);padding:0 2px;font-size:11px;opacity:0.5;transition:opacity 0.15s;"
+                                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.5'">📋</button>
+                    </div>
+                    {% else %}
+                    <div class="event-meta-item">
+                        <span class="icon">📍</span>
+                        <a href="#" class="event-meta-add" onclick="editField({{ event.id }}, 'location', this.parentElement, 'Prizorišče'); return false;">+ prizorišče</a>
+                    </div>
+                    {% endif %}
+                    {% if not event.event_type %}
+                    <div class="event-meta-item">
+                        <span class="icon">🏷</span>
+                        <a href="#" class="event-meta-add" onclick="editField({{ event.id }}, 'event_type', this.parentElement, 'Tip'); return false;">+ tip</a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if event.description %}
+                <div class="event-description" id="desc-{{ event.id }}" style="position:relative;">
+                    {% if event.description_source == 'ai-generated' %}<span class="ai-badge">🤖 AI</span>{% endif %}
+                    {{ event.description }}
+                </div>
+                <div style="display:flex;gap:6px;margin:4px 0 8px 0;flex-wrap:wrap;">
+                    <button onclick="copyDescription({{ event.id }})" title="Kopiraj opis"
+                            style="background:var(--surface);border:1px solid var(--border);cursor:pointer;color:var(--text-muted);padding:2px 8px;font-size:11px;border-radius:4px;">📋 Kopiraj opis</button>
+                    {% if event.source_url or event.detail_url %}
+                    <button onclick="refetchDescription({{ event.id }}, document.getElementById('desc-{{ event.id }}'))" title="Ponovno iskanje opisa iz vira"
+                            style="background:var(--surface);border:1px solid var(--border);cursor:pointer;color:var(--text-muted);padding:2px 8px;font-size:11px;border-radius:4px;">🔄 Najdi boljši opis</button>
+                    {% endif %}
+                    <button onclick="aiDescription({{ event.id }}, document.getElementById('desc-{{ event.id }}'))" title="Generiraj nov opis z AI (prepiše obstoječega)"
+                            style="background:var(--surface);border:1px solid var(--border);cursor:pointer;color:#9c27b0;padding:2px 8px;font-size:11px;border-radius:4px;">🤖 AI nov opis</button>
+                </div>
+                {% else %}
+                <div class="event-description-empty">
+                    Ni opisa.
+                    <a href="#" onclick="fetchDescription({{ event.id }}, this.parentElement); return false;">Poišči iz vira</a>
+                    {% if event.source_url or event.detail_url %} · <a href="#" onclick="aiDescription({{ event.id }}, this.parentElement); return false;">Generiraj z AI</a>{% endif %}
+                </div>
+                {% endif %}
+
+                <div class="event-actions">
+                    <button class="btn btn-success btn-sm" onclick="markEvent({{ event.id }}, 'approved')">✓ Obdelano</button>
+                    <button class="btn btn-warning btn-sm" onclick="markEvent({{ event.id }}, 'skipped')">⊘ Preskoči</button>
+                    {% if event.source_url or event.detail_url %}
+                    <a href="{{ event.source_url or event.detail_url }}" target="_blank" rel="noopener"
+                       class="btn btn-ghost btn-sm" title="Odpri izvirni vir tega dogodka v novem zavihku">↗ Odpri vir</a>
+                    {% endif %}
+
+                    <div class="menu-wrap">
+                        <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleMenu({{ event.id }})" title="Več">⋯</button>
+                        <div class="menu" id="menu-{{ event.id }}">
+                            <button class="menu-item" onclick="copyEvent({{ event.id }}); closeMenus();">📋 Kopiraj vse</button>
+                            <button class="menu-item" onclick="copyField('{{ event.title|e }}', 'Naslov'); closeMenus();">📋 Kopiraj naslov</button>
+                            {% if event.location %}
+                            <button class="menu-item" onclick="copyField('{{ event.location|e }}', 'Prizorišče'); closeMenus();">📋 Kopiraj prizorišče</button>
+                            {% endif %}
+                            {% if event.date_start %}
+                            <button class="menu-item" onclick="copyField('{{ event.date_start.strftime('%d. %m. %Y') }}{% if event.time_start %} ob {{ event.time_start[:5] }}{% endif %}', 'Datum'); closeMenus();">📋 Kopiraj datum</button>
+                            {% endif %}
+                            {% if event.description %}
+                            <button class="menu-item" onclick="copyDescription({{ event.id }}); closeMenus();">📋 Kopiraj opis</button>
+                            {% endif %}
+                            <div class="menu-divider"></div>
+                            {% if event.image_url %}
+                            <button class="menu-item" onclick="downloadImage('{{ event.image_url }}', '{{ event.title|e }}'); closeMenus();">⬇ Prenesi sliko</button>
+                            {% endif %}
+                            {% if event.source_url or event.detail_url %}
+                            <a class="menu-item" href="{{ event.source_url or event.detail_url }}" target="_blank" rel="noopener">↗ Odpri vir</a>
+                            {% endif %}
+                            <div class="menu-divider"></div>
+                            <button class="menu-item" onclick="editField({{ event.id }}, 'title', null, 'Naslov'); closeMenus();">✏ Uredi naslov</button>
+                            {% if event.location %}
+                            <button class="menu-item" onclick="editField({{ event.id }}, 'location', null, 'Prizorišče'); closeMenus();">✏ Uredi prizorišče</button>
+                            {% endif %}
+                            <button class="menu-item" onclick="editField({{ event.id }}, 'event_type', null, 'Tip'); closeMenus();">✏ Uredi tip</button>
+                        </div>
+                    </div>
+
+                    <div class="event-actions-spacer"></div>
+                    <span class="event-source" title="Vir">{{ event.source_id }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+
+    {% if total_pages > 1 %}
+    <div class="pagination">
+        {% if page_num > 1 %}
+        <a href="?p={{ page_num - 1 }}&media={{ current_media }}&from={{ date_from }}&to={{ date_to }}&status={{ current_status }}&q={{ current_search }}" class="btn btn-ghost btn-sm">← Prejšnja</a>
+        {% endif %}
+        {% for p in range(1, total_pages + 1) %}
+        <a href="?p={{ p }}&media={{ current_media }}&from={{ date_from }}&to={{ date_to }}&status={{ current_status }}&q={{ current_search }}"
+           class="btn {{ 'btn-primary' if p == page_num else 'btn-ghost' }} btn-sm">{{ p }}</a>
+        {% endfor %}
+        {% if page_num < total_pages %}
+        <a href="?p={{ page_num + 1 }}&media={{ current_media }}&from={{ date_from }}&to={{ date_to }}&status={{ current_status }}&q={{ current_search }}" class="btn btn-ghost btn-sm">Naslednja →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    // ====== CSRF wrapper ======
+    (function patchFetch() {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
+        const origFetch = window.fetch;
+        window.fetch = function(url, opts = {}) {
+            const method = (opts.method || 'GET').toUpperCase();
+            if (method !== 'GET' && method !== 'HEAD') {
+                opts.headers = opts.headers || {};
+                if (!opts.headers['X-CSRF-Token']) opts.headers['X-CSRF-Token'] = csrfToken;
+            }
+            return origFetch(url, opts);
+        };
+    })();
+
+    // ====== TOAST ======
+    let _toastTimer = null;
+    function showToast(message, type='default') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+        if (_toastTimer) clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => toast.classList.remove('show'), 2500);
+    }
+
+    // ====== MENU ======
+    function toggleMenu(eventId) {
+        const m = document.getElementById('menu-' + eventId);
+        const isOpen = m.classList.contains('open');
+        closeMenus();
+        if (!isOpen) m.classList.add('open');
+    }
+    function closeMenus() {
+        document.querySelectorAll('.menu.open').forEach(m => m.classList.remove('open'));
+    }
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.menu-wrap')) closeMenus();
+    });
+
+    // ====== COPY ======
+    function copyField(text, label) {
+        navigator.clipboard.writeText((text || '').trim())
+            .then(() => showToast(label + ' kopirano'))
+            .catch(e => showToast('Napaka: ' + e.message));
+    }
+    async function copyEvent(eventId) {
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/copy-text');
+            const data = await resp.json();
+            await navigator.clipboard.writeText(data.text);
+            showToast('Vsebina kopirana');
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+    function copyDescription(eventId) {
+        const desc = document.getElementById('desc-' + eventId)
+                    || document.querySelector('#event-' + eventId + ' .event-description');
+        if (!desc) return;
+        // Vzemi childNodes - izloči gumbe
+        const text = Array.from(desc.childNodes)
+            .filter(n => n.nodeType === 3 || (n.tagName && n.tagName !== 'BUTTON' && !n.classList.contains('ai-badge')))
+            .map(n => n.textContent || '').join('').trim();
+        copyField(text, 'Opis');
+    }
+
+    // ====== IMAGE ======
+    async function downloadImage(url, title) {
+        try {
+            showToast('Prenašam sliko...');
+            const resp = await fetch(url);
+            const blob = await resp.blob();
+            const ext = url.split('.').pop().split('?')[0] || 'jpg';
+            const filename = title.replace(/[^a-zA-Z0-9čšžČŠŽ ]/g, '').trim().replace(/\s+/g, '-').substring(0, 60) + '.' + ext;
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+            showToast('Slika prenesena');
+        } catch (e) {
+            window.open(url, '_blank');
+            showToast('Odpiranje v novem zavihku');
+        }
+    }
+
+    async function fetchImage(eventId) {
+        showToast('Iščem sliko...');
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/fetch-image', { method: 'POST' });
+            const data = await resp.json();
+            if (data.ok && data.image_url) {
+                let url = data.image_url;
+                if (url.includes('fbsbx.com') || url.includes('fbcdn.net') || url.includes('facebook.com'))
+                    url = '/api/image-proxy?url=' + encodeURIComponent(data.image_url);
+                const card = document.getElementById('event-' + eventId);
+                const imgDiv = card.querySelector('.event-image');
+                imgDiv.innerHTML = '<a href="' + data.image_url + '" target="_blank"><img src="' + url + '" loading="lazy"></a><div class="event-image-badge">Najdena</div>';
+                showToast('Slika najdena');
+            } else {
+                showToast(data.error || 'Slike ni bilo mogoče najti');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    // ====== DESCRIPTIONS ======
+    async function refetchDescription(eventId, container) {
+        if (!confirm('Ponovno poišči opis za ta dogodek? (Prepiše obstoječega.)')) return;
+        if (container) {
+            container.innerHTML = '🔄 Iščem boljši opis...';
+        }
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/fetch-description?force=1', { method: 'POST' });
+            const data = await resp.json();
+            if (data.ok) {
+                if (container) container.innerHTML = data.description.replace(/</g,'&lt;');
+                showToast('Opis posodobljen');
+            } else {
+                showToast(data.error || 'Opisa ni bilo mogoče najti — obstoječi ohranjen');
+                refreshDashboard();
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    async function fetchDescription(eventId, container) {
+        if (container) container.innerHTML = '🔄 Iščem opis...';
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/fetch-description', { method: 'POST' });
+            const data = await resp.json();
+            if (data.ok) {
+                if (container) {
+                    container.outerHTML = '<div class="event-description">' + data.description.replace(/</g,'&lt;') + '</div>';
+                }
+                showToast('Opis najden');
+            } else if (container) {
+                container.innerHTML = '⚠ Opisa ni mogoče najti. <a href="#" onclick="fetchDescription(' + eventId + ', this.parentElement); return false;">Poskusi znova</a> · <a href="#" onclick="aiDescription(' + eventId + ', this.parentElement); return false;">Generiraj z AI</a>';
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    async function aiDescription(eventId, container) {
+        // Če dogodek že ima opis (container je div.event-description), potrdi prepis
+        if (container && container.classList.contains('event-description') &&
+            container.textContent.trim().length > 30) {
+            if (!confirm('Generiraj nov AI opis? Prepiše obstoječega.')) return;
+        }
+        if (container) container.innerHTML = '🤖 Generiram z AI...';
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/ai-description', { method: 'POST' });
+            const data = await resp.json();
+            if (data.ok) {
+                if (container) {
+                    container.innerHTML = '<span class="ai-badge">🤖 AI</span>' + data.description.replace(/</g,'&lt;');
+                    container.className = 'event-description';
+                }
+                showToast('AI opis ustvarjen (' + (data.usage.per_day) + '/' + data.usage.per_day_max + ')');
+            } else if (container) {
+                container.innerHTML = '⚠ ' + (data.error || 'Napaka') + ' · <a href="#" onclick="aiDescription(' + eventId + ', this.parentElement); return false;">poskusi znova</a>';
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    // ====== EDIT FIELDS ======
+    function editField(eventId, field, container, label) {
+        if (!container) {
+            // Klic iz menija — uporabimo prompt fallback (preprosto)
+            const card = document.getElementById('event-' + eventId);
+            const titleEl = card.querySelector('.event-title');
+            const currentVal = (field === 'title' ? titleEl.textContent : '').trim();
+            const v = prompt('Nova vrednost za ' + label + ':', currentVal);
+            if (v === null) return;
+            saveField(eventId, field, v.trim());
+            return;
+        }
+        // Inline edit (za "+ prizorišče" / "+ tip")
+        const isType = field === 'event_type';
+        const datalist = isType ? `<datalist id="dl-${eventId}-${field}">
+            <option value="koncert"><option value="gledalisce"><option value="film">
+            <option value="razstava"><option value="predavanje"><option value="delavnica">
+            <option value="festival"><option value="sport"><option value="otroski">
+            <option value="kulinarika"><option value="zabava"><option value="vodeni-ogled">
+        </datalist>` : '';
+        container.innerHTML = `${datalist}
+            <input type="text" id="inp-${eventId}-${field}" class="field-edit-input" placeholder="${label}..."
+                ${isType ? `list="dl-${eventId}-${field}"` : ''}
+                onkeydown="if(event.key==='Enter')saveField(${eventId},'${field}',this.value);if(event.key==='Escape')location.reload()">
+            <button class="btn btn-primary btn-sm" onclick="saveField(${eventId},'${field}',document.getElementById('inp-${eventId}-${field}').value)">Shrani</button>
+            <button class="btn btn-ghost btn-sm" onclick="location.reload()">×</button>`;
+        const inp = document.getElementById(`inp-${eventId}-${field}`);
+        if (inp) { inp.focus(); }
+    }
+
+    async function saveField(eventId, field, value) {
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/update-field', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({field, value: value.trim()})
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                showToast('Shranjeno');
+                refreshDashboard();
+            } else {
+                showToast(data.message || data.error || 'Napaka');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    // ====== EVENT STATUS ======
+    async function markEvent(eventId, status) {
+        const mediaSel = document.querySelector('select[name="media"]');
+        const mediaId = mediaSel ? mediaSel.value : '';
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/status', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status, media_id: mediaId})
+            });
+            const card = document.getElementById('event-' + eventId);
+            if (status === 'approved') {
+                card.classList.add('done');
+                showToast('Obdelano');
+            } else {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(20px)';
+                setTimeout(() => card.style.display = 'none', 300);
+                showToast('Preskočeno');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    // ====== BULK ======
+    function _selectedEventIds() {
+        return Array.from(document.querySelectorAll('.bulk-select:checked'))
+            .map(cb => parseInt(cb.dataset.eventId, 10));
+    }
+
+    function updateBulkBar() {
+        const ids = _selectedEventIds();
+        const bar = document.getElementById('bulk-bar');
+        const count = document.getElementById('bulk-count');
+        if (count) count.textContent = ids.length;
+        if (bar) bar.classList.toggle('active', ids.length > 0);
+        document.body.classList.toggle('bulk-mode', ids.length > 0);
+        document.querySelectorAll('.event-card').forEach(c => {
+            const cb = c.querySelector('.bulk-select');
+            c.classList.toggle('selected', cb && cb.checked);
+        });
+    }
+    function clearBulkSelection() {
+        document.querySelectorAll('.bulk-select:checked').forEach(cb => cb.checked = false);
+        updateBulkBar();
+    }
+
+    async function bulkAction(action) {
+        const ids = _selectedEventIds();
+        if (!ids.length) { showToast('Nič ni izbrano'); return; }
+        const labels = {approved: 'Označi kot obdelano', skipped: 'Preskoči', featured: 'Izpostavi'};
+        if (!confirm(`${labels[action]} ${ids.length} dogodkov?`)) return;
+        const mediaSel = document.querySelector('select[name="media"]');
+        const mediaId = mediaSel ? mediaSel.value : '';
+        try {
+            const resp = await fetch('/api/events/bulk-action', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({event_ids: ids, action, media_id: mediaId || null})
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                showToast(`${data.affected_events} dogodkov: ${labels[action]}`);
+                clearBulkSelection();
+                refreshDashboard();
+            } else {
+                showToast(data.error || 'Napaka');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    // ====== SCRAPE ======
+    async function runScrape(days) {
+        const mediaSel = document.querySelector('select[name="media"]');
+        const mediaId = mediaSel ? mediaSel.value : '';
+        const mediaLabel = mediaId ? mediaSel.options[mediaSel.selectedIndex].text : 'vseh medijev';
+        if (!confirm(`Sproži osveževanje za ${mediaLabel} (${days} dni)?`)) return;
+        const url = '/api/scrape/refresh?days=' + days + (mediaId ? '&media=' + encodeURIComponent(mediaId) : '');
+        try {
+            const resp = await fetch(url, { method: 'POST' });
+            const data = await resp.json();
+            if (data.ok) {
+                showToast(`Scraping zagnan: ${mediaLabel} (${days} dni)`);
+                _scrapeFinishHandled = false;
+                pollTaskStatus(true);
+            } else {
+                showToast(data.error || 'Napaka');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    async function runEnrichment() {
+        const mediaSel = document.querySelector('select[name="media"]');
+        const mediaId = mediaSel ? mediaSel.value : '';
+        const mediaLabel = mediaId ? mediaSel.options[mediaSel.selectedIndex].text : 'vseh medijev';
+        if (!confirm(`Naknadno poišči manjkajoče opise in slike za ${mediaLabel}?\n\nObdela do 200 dogodkov, traja do 5 min.`)) return;
+        try {
+            const resp = await fetch('/api/enrichment/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({scope: 'both', limit: 200, media_id: mediaId || null})
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                showToast('Enrichment zagnan');
+                _scrapeFinishHandled = false;
+                pollTaskStatus(true);
+            } else {
+                showToast(data.error || 'Napaka');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    async function runPublishedCheck() {
+        const mediaSel = document.querySelector('select[name="media"]');
+        const mediaId = mediaSel ? mediaSel.value : '';
+        const label = mediaId ? mediaSel.options[mediaSel.selectedIndex].text : 'vseh portalov';
+        if (!confirm(`Preveri koledarje ${label} in označi že objavljene dogodke?`)) return;
+        try {
+            const resp = await fetch('/api/published-check/run', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({media_id: mediaId || null})
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                showToast('Preverjanje zagnano');
+                _scrapeFinishHandled = false;
+                pollTaskStatus(true);
+            } else {
+                showToast(data.error || 'Napaka');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    async function cancelScrape() {
+        if (!confirm('Ustavi trenutni scrape?')) return;
+        try {
+            const resp = await fetch('/api/scrape/cancel', { method: 'POST' });
+            const data = await resp.json();
+            showToast(data.ok ? 'Ustavljam...' : (data.error || 'Napaka'));
+        } catch (e) { showToast('Napaka: ' + e.message); }
+    }
+
+    // ====== POLLING ======
+    let _pollTimer = null;
+    let _scrapeFinishHandled = false;
+    let _lastBarPct = -1;
+
+    async function pollTaskStatus(forceInterval) {
+        if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+        const statusEl = document.getElementById('scrape-status');
+        const statusText = document.getElementById('scrape-status-text');
+        const fillEl = document.getElementById('progress-fill');
+        const stripEl = document.getElementById('progress-strip');
+
+        const tick = async () => {
+            try {
+                const resp = await fetch('/api/tasks/status');
+                // Detect HTML response (sessija potekla / restart) → reload
+                const ctype = resp.headers.get('content-type') || '';
+                if (!ctype.includes('json')) {
+                    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+                    showToast('Seja je potekla — osvežujem...');
+                    setTimeout(() => location.reload(), 800);
+                    return;
+                }
+                const data = await resp.json();
+                const s = data.scrape;
+                if (s.running) {
+                    statusEl.classList.add('active');
+                    stripEl.classList.add('active');
+                    const p = s.progress || {};
+                    const pct = Math.max(p.percent || 0, 1);
+                    if (pct !== _lastBarPct) {
+                        fillEl.style.width = pct + '%';
+                        _lastBarPct = pct;
+                    }
+                    let label = '';
+                    if (p.phase === 'starting') label = 'Začenjam...';
+                    else if (p.phase === 'preparing' || p.phase === 'clearing') label = 'Pripravljam...';
+                    else if (p.phase === 'checking_published') label = 'Preverjam objavljene...';
+                    else if (p.phase === 'cancelled') label = 'Prekinjam...';
+                    else if (p.phase === 'scraping') label = `${p.current_index || 0}/${p.total_sources || 0} · ${p.current_source || ''}`;
+                    else if (p.phase === 'enrichment' || p.phase === 'enrichment_only') {
+                        const ep = p.enrich_phase === 'descriptions' ? 'opise' : (p.enrich_phase === 'images' ? 'slike' : 'manjkajoče');
+                        label = `Iščem ${ep}${p.enrich_total ? ' (' + p.enrich_index + '/' + p.enrich_total + ')' : ''}...`;
+                    }
+                    else if (p.phase === 'published_check') {
+                        label = `Preverjam portale (preverjeno: ${p.checked || 0}, najdeno: ${p.marked || 0})${p.current_media ? ' · ' + p.current_media : ''}`;
+                    }
+                    else if (p.phase === 'assigning') label = 'Razvrščam...';
+                    statusText.textContent = `${pct}% · ${label}`;
+                } else if (s.result) {
+                    statusEl.classList.remove('active');
+                    stripEl.classList.remove('active');
+                    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+                    if (!_scrapeFinishHandled) {
+                        _scrapeFinishHandled = true;
+                        const r = s.result;
+                        const dur = r.duration_s || 0;
+                        const durStr = dur >= 60 ? `${Math.floor(dur/60)} min ${dur%60} s` : `${dur} s`;
+                        let msg;
+                        if (r.is_published_check) {
+                            msg = `✓ Označenih ${r.marked} že objavljenih dogodkov (preverjenih: ${r.checked}) · ${durStr}`;
+                        } else if (r.is_enrichment) {
+                            msg = `✨ Enrichment končan: ${r.desc_processed || 0} opisov, ${r.img_processed || 0} slik · ${durStr}`;
+                        } else {
+                            const prefix = r.cancelled ? '⏹' : '✓';
+                            msg = `${prefix} ${r.total_new || 0} novih`;
+                            if (r.total_updated) msg += `, ${r.total_updated} posodobljenih`;
+                            if (r.total_stale) msg += `, ${r.total_stale} neaktivnih`;
+                            msg += ` · ${durStr}`;
+                        }
+                        showToast(msg);
+                        refreshDashboard();
+                    }
+                } else {
+                    statusEl.classList.remove('active');
+                    stripEl.classList.remove('active');
+                    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+                }
+            } catch (e) { /* tihi padec */ }
+        };
+        await tick();
+        if (forceInterval) _pollTimer = setInterval(tick, 2000);
+    }
+
+    // Ob nalaganju: če task teče, začni polling
+    (async () => {
+        try {
+            const r = await fetch('/api/tasks/status');
+            const d = await r.json();
+            if (d.scrape && d.scrape.running) pollTaskStatus(true);
+        } catch (e) {}
+    })();
+
+    // ============ SCRAPE SUMMARY BANNER ============
+    async function loadSummaryBanner() {
+        try {
+            const r = await fetch('/api/scrape/latest-summary');
+            const d = await r.json();
+            if (!d.has_summary) return;
+            // Banner se vedno prikaže za zadnji scrape (ne glede na is_unseen).
+            // Uporabnik lahko zapre z X — ostane skrit za to sejo, ampak po reloadu spet pride.
+            const banner = document.getElementById('scrape-summary-banner');
+            const title = document.getElementById('banner-title');
+            const detail = document.getElementById('banner-detail');
+            const finished = new Date(d.finished_at);
+            const dateStr = finished.toLocaleString('sl-SI', {
+                day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+            });
+            const dur = d.duration_s || 0;
+            const durStr = dur >= 60 ? `${Math.floor(dur/60)} min ${dur%60} s` : `${dur} s`;
+            title.textContent = `Scrape končan ${dateStr} (trajalo ${durStr})`;
+            const parts = [];
+            parts.push(`<strong>${d.total_new || 0}</strong> novih`);
+            if (d.total_updated) parts.push(`<strong>${d.total_updated}</strong> posodobljenih`);
+            if (d.total_stale) parts.push(`<strong>${d.total_stale}</strong> neaktivnih`);
+            parts.push(`<strong>${d.sources_ok}</strong> virov uspešnih`);
+            if (d.sources_err) parts.push(`<strong style="color:#dc2626;">${d.sources_err} napak</strong>`);
+            detail.innerHTML = parts.join(' · ');
+            banner.style.display = 'flex';
+        } catch (e) { /* tihi padec */ }
+    }
+
+    async function dismissSummaryBanner() {
+        const banner = document.getElementById('scrape-summary-banner');
+        banner.style.transition = 'opacity 0.3s, transform 0.3s';
+        banner.style.opacity = '0';
+        banner.style.transform = 'translateY(-10px)';
+        try {
+            await fetch('/api/scrape/mark-summary-seen', { method: 'POST' });
+        } catch (e) {}
+        setTimeout(() => banner.style.display = 'none', 300);
+    }
+
+    loadSummaryBanner();
+
+    // ====== AJAX REFRESH ======
+    function _currentFilters() {
+        const params = new URLSearchParams();
+        const set = (name, sel) => {
+            const el = document.querySelector(sel);
+            if (el && el.value) params.set(name, el.value);
+        };
+        set('media', 'select[name="media"]');
+        set('from', 'input[name="from"]');
+        set('to', 'input[name="to"]');
+        set('status', 'select[name="status"]');
+        set('q', 'input[name="q"]');
+        const inactive = document.querySelector('input[name="show_inactive"]');
+        if (inactive && inactive.checked) params.set('show_inactive', '1');
+        return params.toString();
+    }
+
+    async function refreshDashboard() {
+        // Najlažje: preprosto nalozi stran z istimi parametri
+        // (smiselno ker filtri so že v URL-ju)
+        const params = _currentFilters();
+        window.location.href = window.location.pathname + (params ? '?' + params : '');
+    }
+
+    // ====== SCRAPE SCOPE HINT ======
+    (function() {
+        const sel = document.querySelector('select[name="media"]');
+        const hint = document.getElementById('scrape-scope-hint');
+        if (!sel || !hint) return;
+        const apply = () => {
+            const v = sel.value;
+            hint.textContent = v
+                ? '(samo ' + sel.options[sel.selectedIndex].text + ')'
+                : '(vse vire)';
+        };
+        sel.addEventListener('change', apply);
+        apply();
+    })();
+</script>
+
+</body>
+</html>

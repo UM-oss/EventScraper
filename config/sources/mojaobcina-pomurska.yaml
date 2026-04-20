@@ -1,0 +1,38 @@
+source:
+  id: "mojaobcina-pomurska"
+  name: "MojaObcina - Pomurska regija"
+  base_url: "https://www.mojaobcina.si"
+  list_url: "https://www.mojaobcina.si/pomurska-regija/dogodki/"
+  region: "pomurska"
+
+  parser_type: "mojaobcina"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors:
+    event_card: "article.kvadrat-vsebine-clean"
+    title: ".kv-naslov"
+    date: ".kv-datum"
+    date_day: ".kv-dan"
+    date_month: ".kv-mesec"
+    date_year: ".kv-leto"
+    image: ".kv-slika img"
+    image_attr: "src"
+    detail_link: ".kv-naslov a"
+    detail_link_attr: "href"
+
+  detail_selectors:
+    location: ".kv-lokacija"
+    time: ".kv-cas"
+    price: ".kv-vstopnina"
+    categories: ".kv-kategorija-2"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

@@ -1,0 +1,25 @@
+source:
+  id: "grad-rajhenburg"
+  name: "Grad Rajhenburg"
+  base_url: "https://www.gradrajhenburg.si"
+  list_url: "https://www.gradrajhenburg.si/dogodki/brestanica"
+  region: "posavje"
+
+  parser_type: "manual"
+
+  # Poletje na gradu, kulturni dogodki
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

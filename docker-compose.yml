@@ -1,0 +1,58 @@
+version: "3.9"
+
+# Lokalno razvojno okolje s PostgreSQL bazo.
+# Uporaba:
+#   docker compose up -d        # samo baza
+#   docker compose --profile full up   # baza + dashboard
+#
+# Po prvem startup-u:
+#   venv/bin/alembic upgrade head
+#   venv/bin/python3 -c "from scraper.bootstrap import bootstrap_media_outlets; bootstrap_media_outlets()"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: event-scraper-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: event_scraper
+      POSTGRES_PASSWORD: event_scraper_pwd
+      POSTGRES_DB: event_scraper
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U event_scraper -d event_scraper"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dashboard:
+    profiles: ["full"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: event-scraper-app
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      EVENT_SCRAPER_DATABASE_URL: postgresql://event_scraper:event_scraper_pwd@postgres:5432/event_scraper
+      EVENT_SCRAPER_VALIDATE: "1"
+      EVENT_SCRAPER_SCHEDULER: "0"
+      LOG_LEVEL: INFO
+      LOG_JSON: "1"
+      FLASK_DEBUG: "0"
+      PORT: "8080"
+      SESSION_SECURE: "0"
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+
+volumes:
+  pg_data:

@@ -1,0 +1,25 @@
+source:
+  id: "posavski-muzej"
+  name: "Posavski muzej Brežice"
+  base_url: "https://www.pmb.si"
+  list_url: "https://www.pmb.si/aktualni-dogodki-in-prireditve"
+  region: "posavje"
+
+  parser_type: "manual"
+
+  # Muzej, razstave
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

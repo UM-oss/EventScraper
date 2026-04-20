@@ -1,0 +1,25 @@
+source:
+  id: "kibla"
+  name: "Kibla Maribor"
+  base_url: "https://www.kibla.org"
+  list_url: "https://www.kibla.org/program"
+  region: "maribor"
+
+  parser_type: "manual"
+
+  # Multimedijski center, WordPress - preveriti /feed/
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

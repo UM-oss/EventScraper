@@ -1,0 +1,25 @@
+source:
+  id: "drama-ljubljana"
+  name: "SNG Drama Ljubljana"
+  base_url: "https://www.drama.si"
+  list_url: "https://www.drama.si/repertoar/"
+  region: "ljubljana"
+
+  parser_type: "manual"
+
+  # Narodno gledališče - repertoar in premiere
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

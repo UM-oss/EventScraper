@@ -1,0 +1,25 @@
+source:
+  id: "kulturni-dom-ng"
+  name: "Kulturni dom Nova Gorica"
+  base_url: "https://kulturnidom-ng.si"
+  list_url: "https://kulturnidom-ng.si/en/events-list/"
+  region: "primorska"
+
+  parser_type: "manual"
+
+  # Kulturni dogodki Nova Gorica
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

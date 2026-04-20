@@ -1,0 +1,28 @@
+source:
+  id: "kultura-maribor"
+  name: "Kultura Maribor"
+  base_url: "https://kultura.maribor.si"
+  list_url: "https://kultura.maribor.si/events/"
+  feed_url: "https://kultura.maribor.si/events/?ical=1"
+  region: "maribor"
+
+  parser_type: "ical"
+
+  # Mestna občina Maribor - napovednik kulturnih dogodkov
+  # iCal feed z VEVENT komponentami (DTSTART, DTEND, SUMMARY, LOCATION, DESCRIPTION)
+  # ~21 kulturnih dogodkov (razstave, koncerti, predstave, festivali)
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

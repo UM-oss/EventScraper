@@ -1,0 +1,25 @@
+source:
+  id: "festival-ljubljana"
+  name: "Festival Ljubljana"
+  base_url: "https://www.ljubljanafestival.si"
+  list_url: "https://www.ljubljanafestival.si/en/events-calendar/"
+  region: "ljubljana"
+
+  parser_type: "manual"
+
+  # Poletni in zimski festival, koncerti, opera, balet
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

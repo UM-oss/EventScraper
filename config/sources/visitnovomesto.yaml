@@ -1,0 +1,33 @@
+source:
+  id: "visitnovomesto"
+  name: "Visit Novo mesto - Dogodki"
+  base_url: "https://visitnovomesto.si"
+  list_url: "https://visitnovomesto.si/events/month/"
+  region: "dolenjska"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Selectors guessed - tourism website
+  list_selectors:
+    event_card: ".event-item, .tribe-events-calendar-list__event, article"  # guessed (may use The Events Calendar plugin)
+    title: "h3 a, h2 a, .tribe-events-calendar-list__event-title a"
+    date: ".date, .tribe-events-calendar-list__event-date"
+    image: "img"
+    image_attr: "src"
+    detail_link: "h3 a, h2 a"
+    detail_link_attr: "href"
+
+  detail_selectors:
+    description: ".content, .tribe-events-single-event-description"
+    location: ".location, .tribe-venue"
+    time: ".event-time, .tribe-events-schedule"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

@@ -1,0 +1,49 @@
+source:
+  id: "spanskiborci"
+  name: "Španski borci"
+  base_url: "https://www.spanskiborci.si"
+  list_url: "https://www.spanskiborci.si/program"
+  region: "ljubljana"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Struktura:
+  # <div class="element csEntriesEntryEvent sb design-grid">
+  #   <div class="imageWrapper"><picture><img src="..."></picture></div>
+  #   <div class="content">
+  #     <div class="authors"><h2><span class="authorOutput">En–Knap</span></h2></div>
+  #     <div class="title"><h1>Povratek</h1></div>
+  #     <div class="datePlace"><h2><span class="date dateOutput">14. & 15. APR</span></h2></div>
+  #     <div class="tags"><a>#plesna predstava</a></div>
+  #   </div>
+  # </div>
+
+  list_selectors:
+    event_card: ".csEntriesEntryEvent"
+    title: ".title h1"
+    date: ".dateOutput"
+    image: ".imageWrapper img"
+    image_attr: "src"
+    detail_link: "a"
+    detail_link_attr: "href"
+    description: ".authors .authorOutput"
+    categories: ".tags a"
+
+  detail_selectors:
+    description: ".csEntriesEntryEvent .text, .content p, article p, .description"
+    location: ".location, .venue"
+    time: ".time, .dateOutput"
+    price: ".price"
+    organizer: ".authors .authorOutput"
+    image: ".imageWrapper img, article img"
+    image_attr: "src"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

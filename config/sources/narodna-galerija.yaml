@@ -1,0 +1,25 @@
+source:
+  id: "narodna-galerija"
+  name: "Narodna galerija"
+  base_url: "https://www.ng-slo.si"
+  list_url: "https://www.ng-slo.si/si/razstave-in-projekti"
+  region: "ljubljana"
+
+  parser_type: "manual"
+
+  # Razstave in projekti
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

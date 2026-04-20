@@ -1,0 +1,33 @@
+source:
+  id: "zkts-ms"
+  name: "ZKTS Murska Sobota"
+  base_url: "https://www.zkts-ms.si"
+  list_url: "https://www.zkts-ms.si/kategorija/kultura/dogodki/"
+  region: "pomurska"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Selectors guessed based on common WordPress patterns
+  list_selectors:
+    event_card: "article.post"  # WordPress default article class
+    title: "h2.entry-title a"
+    date: ".entry-date"
+    image: ".entry-thumbnail img, .post-thumbnail img"
+    image_attr: "src"
+    detail_link: "h2.entry-title a"
+    detail_link_attr: "href"
+
+  detail_selectors:
+    description: ".entry-content"
+    location: ".event-location"  # guessed
+    time: ".event-time"  # guessed
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

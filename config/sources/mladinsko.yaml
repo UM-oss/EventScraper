@@ -1,0 +1,25 @@
+source:
+  id: "mladinsko"
+  name: "Slovensko mladinsko gledališče"
+  base_url: "https://mladinsko.com"
+  list_url: "https://mladinsko.com/sl/program/program/"
+  region: "ljubljana"
+
+  parser_type: "manual"
+
+  # Eksperimentalno gledališče
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  list_selectors: {}
+  detail_selectors: {}
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"

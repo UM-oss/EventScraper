@@ -1,0 +1,33 @@
+source:
+  id: "visitmaribor"
+  name: "Visit Maribor - Dogodki"
+  base_url: "https://www.visitmaribor.si"
+  list_url: "https://www.visitmaribor.si/si/kaj-poceti/dogodki-in-prireditve/vsi-dogodki-in-prireditve/"
+  region: "maribor"
+
+  pagination:
+    type: "query"
+    param: "page"
+    start: 1
+    max_pages: 1
+
+  # Selectors guessed - tourism website
+  list_selectors:
+    event_card: ".event-item, .card, .listing-item"  # guessed
+    title: "h3 a, h2 a, .card-title a"
+    date: ".date, .event-date"
+    image: "img, .card-img img"
+    image_attr: "src"
+    detail_link: "h3 a, h2 a, .card-title a"
+    detail_link_attr: "href"
+
+  detail_selectors:
+    description: ".content, .event-description, .detail-content"
+    location: ".location, .event-location"
+    time: ".event-time"
+
+  settings:
+    delay_between_requests: 2
+    timeout: 30
+    encoding: "utf-8"
+    user_agent: "EventScraper/1.0 (regional media aggregator)"
