@@ -130,6 +130,53 @@ Dnevni scrape bo poslal sporočilo: *"Event scrape končan: 47 novih, 12 posodob
 
 ---
 
+## 🔓 Portal whitelist (za "Že na portalu" funkcijo)
+
+Funkcija **🗓 Preveri portale** in avtomatsko označevanje že-objavljenih
+dogodkov potrebujeta dostop do koledarjev tvojih portalov:
+- sobotainfo.com/dogodki
+- mariborinfo.com/dogodki
+- ptujinfo.com/dogodki
+- itd.
+
+**Te domene Cloudflare blokirajo cloud IP-je** (Render, AWS, ...) z 403.
+
+### Rešitev: whitelist Render IP-jev
+
+Kontaktiraj svojega hosting providera (verjetno **netmedia.si**) in jim
+pošlji ta email:
+
+```
+Zadeva: Whitelist IP naslovov za moje portale
+
+Pozdravljeni,
+prosim za dodajanje sledečih IP naslovov v whitelist (Cloudflare/WAF
+izvzetje) za moje portale:
+
+  sobotainfo.com, mariborinfo.com, ptujinfo.com,
+  ljubljanainfo.com, gorenjskainfo.com, dolenjskainfo.com
+
+IP naslovi (Render.com Frankfurt EU):
+  35.180.46.166
+  35.180.119.197
+  35.181.150.158
+
+Aplikacija občasno (1× dnevno + ročno) pridobi seznam dogodkov iz
+/dogodki strani, da prepreči ponovno objavo. Trenutno vrne HTTP 403.
+```
+
+> ⚠️ Render IP-ji se lahko spremenijo. Posodobljene IP-je najdeš na:
+> https://docs.render.com/regions
+
+Po whitelist-u (običajno ista dan) bo funkcija delovala.
+
+### Alternativa brez whitelist-a
+
+Uporabi GitHub Actions cron (drugi IP-ji, niso blokirani):
+- Glej spodaj sekcijo "GitHub Actions cron"
+
+---
+
 ## 🛠 Troubleshooting
 
 ### Web service "Sleeping" (free tier)

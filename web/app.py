@@ -1888,6 +1888,8 @@ def run_published_check():
 
             total_checked = 0
             total_marked = 0
+            portals_unreachable = 0
+            portals_with_events = 0
 
             for idx, mid in enumerate(media_ids, 1):
                 progress["percent"] = int(100 * (idx - 1) / max(len(media_ids), 1))
@@ -1895,7 +1897,9 @@ def run_published_check():
 
                 published = checker.fetch_published_events(mid)
                 if not published:
+                    portals_unreachable += 1
                     continue
+                portals_with_events += 1
 
                 with get_db() as db:
                     # Najdi dogodke s status="new" (in/ali "approved") za ta medij
@@ -1943,6 +1947,14 @@ def run_published_check():
                     "checked": total_checked,
                     "marked": total_marked,
                     "media_count": len(media_ids),
+                    "portals_unreachable": portals_unreachable,
+                    "portals_with_events": portals_with_events,
+                    "warning": (
+                        "Portali niso dostopni z Render IP-jev (verjetno Cloudflare 403). "
+                        "Kontaktiraj netmedia admina za whitelist. Glej DEPLOYMENT.md."
+                        if portals_with_events == 0 and portals_unreachable > 0
+                        else None
+                    ),
                     "duration_s": duration,
                 },
             })
