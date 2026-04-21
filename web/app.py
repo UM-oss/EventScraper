@@ -1470,8 +1470,10 @@ def _run_scrape_task(days_ahead, media_id=None):
     """Sproži scraping virov v ozadju.
     Če je media_id podan, scrapaš samo vire iz regij tega medija."""
     import threading
+    import uuid
 
     cancel_event = threading.Event()
+    session_id = str(uuid.uuid4())
     progress = {"phase": "starting", "percent": 0}
     _TASK_STATE["scrape"] = {
         "running": True,
@@ -1480,6 +1482,7 @@ def _run_scrape_task(days_ahead, media_id=None):
         "error": None,
         "days_ahead": days_ahead,
         "media_id": media_id,
+        "session_id": session_id,
         "progress": progress,
         "cancel_event": cancel_event,
     }
@@ -1491,7 +1494,7 @@ def _run_scrape_task(days_ahead, media_id=None):
             engine.days_ahead = days_ahead
             results = engine.run_all(
                 progress=progress, media_id=media_id,
-                cancel_event=cancel_event,
+                cancel_event=cancel_event, session_id=session_id,
             )
             cancelled = results.pop("_cancelled", False)
             cancelled_at_index = results.pop("_cancelled_at_index", None)
@@ -1869,11 +1872,14 @@ def run_published_check():
 @app.route("/api/scrape/latest-summary")
 @auth_required
 def latest_scrape_summary():
-    """Vrne povzetek zadnje dokončane scrape session-e in flag če uporabnik
-    še ni videl rezultatov (za prikaz banner-ja po loginu).
+    """Vrne povzetek zadnje dokončane scrape session-e.
 
-    Session = zaporedni logi brez gap-a > 5 min (en run scrapaš ne preseže
-    5 min med viri). Tako ne mešamo prejšnjih scrape-ov v isti report.
+    Uporablja session_id (UUID) za natančno grupiranje — vsi logi enega
+    /api/scrape/refresh klica imajo isti session_id. Tako se različni klici
+    NIKOLI ne mešajo, tudi če sledijo zaporedoma.
+
+    Fallback: če session_id manjka (legacy logi pred Phase 2.1), uporabimo
+    5-min gap detection.
     """
     with get_db() as db:
         last = db.query(ScrapeLog).filter(
@@ -1884,25 +1890,30 @@ def latest_scrape_summary():
         if not last:
             return jsonify({"has_summary": False})
 
-        # Pridobi vse loge zadnje 2h, sortirane od najnovejše
-        recent_all = db.query(ScrapeLog).filter(
-            ScrapeLog.started_at >= last.finished_at - timedelta(hours=2),
-            ScrapeLog.started_at <= last.finished_at,
-        ).order_by(ScrapeLog.started_at.desc()).all()
-
-        # Walk backwards in dodaj v session dokler je gap < 5 min
-        session_logs = [last]
-        prev = last.started_at
-        for log in recent_all:
-            if log.id == last.id:
-                continue
-            if not log.started_at:
-                continue
-            gap = (prev - log.started_at).total_seconds()
-            if gap > 300:  # > 5 min razmika → nov session
-                break
-            session_logs.append(log)
-            prev = log.started_at
+        # Primarno: grupiraj po session_id
+        if last.session_id:
+            session_logs = db.query(ScrapeLog).filter(
+                ScrapeLog.session_id == last.session_id,
+            ).all()
+        else:
+            # Fallback za stare loge (5-min gap)
+            recent_all = db.query(ScrapeLog).filter(
+                ScrapeLog.started_at >= last.finished_at - timedelta(hours=2),
+                ScrapeLog.started_at <= last.finished_at,
+                ScrapeLog.session_id == None,  # noqa
+            ).order_by(ScrapeLog.started_at.desc()).all()
+            session_logs = [last]
+            prev = last.started_at
+            for log in recent_all:
+                if log.id == last.id:
+                    continue
+                if not log.started_at:
+                    continue
+                gap = (prev - log.started_at).total_seconds()
+                if gap > 300:
+                    break
+                session_logs.append(log)
+                prev = log.started_at
 
         total_new = sum(l.events_new or 0 for l in session_logs)
         total_updated = sum(l.events_updated or 0 for l in session_logs)

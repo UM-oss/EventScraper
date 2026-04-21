@@ -186,14 +186,14 @@ class ScraperEngine:
 
         return details
 
-    def scrape_source(self, config, dedup_config=None):
+    def scrape_source(self, config, dedup_config=None, session_id=None):
         """Zaženi scraping za en vir z UPSERT logiko (Phase 1).
 
         Statusi v event_media in zgodovina v event_edits ostanejo nedotaknjeni.
         Dogodki, ki jih scraper ne najde, se označijo z is_active=False.
         """
         db = Session()
-        log = ScrapeLog(source_id=config.id, status="running")
+        log = ScrapeLog(source_id=config.id, status="running", session_id=session_id)
         db.add(log)
         db.commit()
         scrape_started_at = log.started_at
@@ -597,7 +597,8 @@ class ScraperEngine:
         return False
 
     def run_all(self, progress=None, media_id=None, dedup_config=None,
-                retry_attempts=2, retry_base_delay=2.0, cancel_event=None):
+                retry_attempts=2, retry_base_delay=2.0, cancel_event=None,
+                session_id=None):
         """Zaženi scraping virov (PHASE 1: persistent storage).
 
         - NE briše več baze. Uporablja UPSERT (update obstoječi / insert nov).
@@ -679,7 +680,7 @@ class ScraperEngine:
             })
             try:
                 result, attempts_used = retry_with_backoff(
-                    lambda s=source: self.scrape_source(s, dedup_config=dedup_config),
+                    lambda s=source: self.scrape_source(s, dedup_config=dedup_config, session_id=session_id),
                     max_attempts=retry_attempts + 1,
                     base_delay=retry_base_delay,
                     max_delay=15.0,
@@ -804,7 +805,12 @@ class ScraperEngine:
         threading.Thread(target=_bg, daemon=True, name="bg_enrichment").start()
 
     def _mark_published_events(self):
-        """Po dodelitvi preveri ali so kateri že objavljeni na portalih."""
+        """Po dodelitvi preveri ali so kateri že objavljeni na portalih.
+        Resetira cache pred uporabo, da dobi sveže podatke iz portalov."""
+        try:
+            self.published_checker.reset_cache()
+        except Exception:
+            pass
         db = Session()
         try:
             media_config = self.load_media_config()
@@ -812,9 +818,15 @@ class ScraperEngine:
 
             for m in media_config.get("media", []):
                 media_id = m["id"]
-                published = self.published_checker.fetch_published_events(media_id)
-                if not published:
+                try:
+                    published = self.published_checker.fetch_published_events(media_id)
+                except Exception as fe:
+                    logger.warning(f"  Published fetch napaka za {media_id}: {fe}")
                     continue
+                if not published:
+                    logger.info(f"  {media_id}: 0 že objavljenih (preskačem mark-published)")
+                    continue
+                logger.info(f"  {media_id}: {len(published)} že objavljenih, preverjam ujemanje...")
 
                 from sqlalchemy import and_
                 new_events = db.execute(

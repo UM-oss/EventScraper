@@ -389,6 +389,9 @@ class ScrapeLog(Base):
     __tablename__ = "scrape_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String(36), nullable=True, index=True)
+    # UUID enega "scrape session-a" — vsi vir-logi enega /api/scrape/refresh klica
+    # imajo isti session_id. Tako banner natančno združi le svoje loge.
     source_id = Column(String(50), nullable=False, index=True)
     started_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
     finished_at = Column(DateTime, nullable=True)

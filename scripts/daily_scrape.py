@@ -37,10 +37,12 @@ def main():
                 (f" (medij: {media_id})" if media_id else " (vsi viri)"))
     logger.info("=" * 60)
 
+    import uuid
     started = time.time()
+    session_id = str(uuid.uuid4())
     progress = {"phase": "starting", "percent": 0}
     engine = ScraperEngine()
-    results = engine.run_all(progress=progress, media_id=media_id)
+    results = engine.run_all(progress=progress, media_id=media_id, session_id=session_id)
 
     duration = int(time.time() - started)
     total_new = sum(r.get("new", 0) for r in results.values()
