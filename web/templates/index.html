@@ -854,6 +854,7 @@
     <div class="bulk-bar" id="bulk-bar">
         <span class="bulk-bar-count"><span id="bulk-count">0</span> izbranih</span>
         <button class="btn btn-success btn-sm" onclick="bulkAction('approved')">✓ Obdelano</button>
+        <button class="btn btn-sm" style="background:#2563eb;color:white;border:1px solid #2563eb;" onclick="bulkAction('published')">📅 Že na portalu</button>
         <button class="btn btn-warning btn-sm" onclick="bulkAction('skipped')">⊘ Preskoči</button>
         <button class="btn btn-ghost btn-sm" onclick="bulkAction('featured')">⭐ Izpostavi</button>
         <button class="btn btn-ghost btn-sm" onclick="clearBulkSelection()">Prekliči</button>
@@ -962,8 +963,9 @@
                 {% endif %}
 
                 <div class="event-actions">
-                    <button class="btn btn-success btn-sm" onclick="markEvent({{ event.id }}, 'approved')">✓ Obdelano</button>
-                    <button class="btn btn-warning btn-sm" onclick="markEvent({{ event.id }}, 'skipped')">⊘ Preskoči</button>
+                    <button class="btn btn-success btn-sm" onclick="markEvent({{ event.id }}, 'approved')" title="Označi kot obdelano (status: approved)">✓ Obdelano</button>
+                    <button class="btn btn-sm" style="background:#2563eb;color:white;" onclick="markEvent({{ event.id }}, 'published')" title="Označi kot že objavljeno na mojem portalu (status: published)">📅 Že na portalu</button>
+                    <button class="btn btn-warning btn-sm" onclick="markEvent({{ event.id }}, 'skipped')" title="Preskoči — ni relevantno za moj portal (status: skipped)">⊘ Preskoči</button>
                     {% if event.source_url or event.detail_url %}
                     <a href="{{ event.source_url or event.detail_url }}" target="_blank" rel="noopener"
                        class="btn btn-ghost btn-sm" title="Odpri izvirni vir tega dogodka v novem zavihku">↗ Odpri vir</a>
@@ -1249,6 +1251,12 @@
             if (status === 'approved') {
                 card.classList.add('done');
                 showToast('Obdelano');
+            } else if (status === 'published') {
+                card.style.transition = 'opacity 0.3s, transform 0.3s';
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(-20px)';
+                setTimeout(() => card.style.display = 'none', 300);
+                showToast('Označeno: že na portalu');
             } else {
                 card.style.transition = 'opacity 0.3s, transform 0.3s';
                 card.style.opacity = '0';
@@ -1285,7 +1293,12 @@
     async function bulkAction(action) {
         const ids = _selectedEventIds();
         if (!ids.length) { showToast('Nič ni izbrano'); return; }
-        const labels = {approved: 'Označi kot obdelano', skipped: 'Preskoči', featured: 'Izpostavi'};
+        const labels = {
+            approved: 'Označi kot obdelano',
+            skipped: 'Preskoči',
+            published: 'Označi kot že objavljene na portalu',
+            featured: 'Izpostavi',
+        };
         if (!confirm(`${labels[action]} ${ids.length} dogodkov?`)) return;
         const mediaSel = document.querySelector('select[name="media"]');
         const mediaId = mediaSel ? mediaSel.value : '';

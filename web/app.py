@@ -851,7 +851,7 @@ def bulk_event_action():
 
     if not event_ids or not isinstance(event_ids, list):
         abort(400, description="event_ids mora biti neprazen seznam")
-    if action not in ("approved", "skipped", "featured", "unfeatured"):
+    if action not in ("approved", "skipped", "published", "featured", "unfeatured"):
         abort(400, description=f"Neveljavna action: {action}")
 
     with get_db() as db:
@@ -877,6 +877,12 @@ def bulk_event_action():
             db.execute(event_media.update().where(where).values(
                 status="skipped",
                 skipped_by_user_id=user_id,
+                processed_at=datetime.utcnow(),
+            ))
+        elif action == "published":
+            db.execute(event_media.update().where(where).values(
+                status="published",
+                published_at=datetime.utcnow(),
                 processed_at=datetime.utcnow(),
             ))
 
