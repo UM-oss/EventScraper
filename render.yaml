@@ -1,79 +1,49 @@
-# Render.com Blueprint za Event Scraper (FREE konfiguracija)
-# Dokumentacija: https://render.com/docs/blueprint-spec
-#
-# Vsebuje:
-#   - PostgreSQL bazo (free 90 dni, 1GB; nato ~$7/mes)
-#   - Web service za Flask dashboard (free, sleeps po 15 min idle)
-#
-# Dnevno scrapanje teče preko GitHub Actions (free, glej .github/workflows/daily-scrape.yml).
-# Če bi raje plačal Render cron job ($7/mes), glej DEPLOYMENT.md za dodatek.
+# Render.com Blueprint za Event Scraper
+# Ref: https://render.com/docs/blueprint-spec
 
 databases:
   - name: event-scraper-db
     plan: free
     databaseName: event_scraper
     user: event_scraper
-    postgresMajorVersion: "16"
-    region: frankfurt   # najbližja Sloveniji
+    region: frankfurt
 
 services:
-  # ============================================================
-  # WEB DASHBOARD
-  # ============================================================
   - type: web
     name: event-scraper-web
     runtime: python
-    plan: free   # 750h/mes, sleeps po 15 min idle. Za production: starter ($7/mes)
+    plan: free
     region: frankfurt
-    pythonVersion: "3.11"
     branch: main
-
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-
-    # Migracije + bootstrap medijev + sync admin user + zagon gunicorn
-    startCommand: |
-      alembic upgrade head &&
-      python scripts/bootstrap_admin.py &&
-      gunicorn -w 2 -b 0.0.0.0:$PORT --timeout 300 --access-logfile - web.app:app
-
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
+    startCommand: alembic upgrade head && python scripts/bootstrap_admin.py && gunicorn -w 2 -b 0.0.0.0:$PORT --timeout 300 --access-logfile - web.app:app
     healthCheckPath: /login
-
     envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.0"
       - key: EVENT_SCRAPER_DATABASE_URL
         fromDatabase:
           name: event-scraper-db
           property: connectionString
-
-      # Scheduler izklopljen v web service-u — uporabljamo GitHub Actions cron
       - key: EVENT_SCRAPER_SCHEDULER
         value: "0"
-
       - key: EVENT_SCRAPER_VALIDATE
         value: "1"
-
       - key: LOG_LEVEL
         value: INFO
       - key: LOG_JSON
         value: "1"
-
       - key: FLASK_DEBUG
         value: "0"
       - key: SESSION_SECURE
         value: "1"
-
-      # Auto-generiran ob prvem deployu, persistira med deploy-i
       - key: EVENT_SCRAPER_SECRET_KEY
         generateValue: true
-
-      # Te NASTAVI ROČNO v Render dashboardu:
       - key: ADMIN_EMAIL
-        sync: false   # ti vneseš v Render UI
+        sync: false
       - key: ADMIN_PASSWORD
-        sync: false   # ti vneseš v Render UI (geslo za prvi login)
+        sync: false
       - key: ADMIN_NAME
         sync: false
-
       - key: GEMINI_API_KEY
-        sync: false   # opcijsko, za AI generiranje opisov
+        sync: false
