@@ -120,6 +120,8 @@ class User(Base):
     email = Column(String(200), unique=True, nullable=False, index=True)
     name = Column(String(200), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
+    password_hash = Column(String(200), nullable=True)
+    # bcrypt hash. Persistira med Render redeploy-i (auth.yaml NE — efemerni FS).
     role = Column(String(20), default="admin", nullable=False)
     # "admin" = vidi vse medije, "editor" = samo svoje
     allowed_media = Column(Text, nullable=True)

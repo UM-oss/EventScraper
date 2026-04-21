@@ -97,19 +97,22 @@ def main():
 
     save_auth(cfg)
 
-    # Posodobi DB users tabelo: postavi role=admin
+    # Posodobi DB users tabelo: postavi role=admin + password_hash (persistira na Render!)
     with get_db() as db:
         u = db.query(User).filter(User.email == admin_email).first()
         if u is None:
             u = User(email=admin_email, name=admin_name,
                      role="admin", is_active=True,
+                     password_hash=pw_hash,
                      created_at=datetime.utcnow())
             db.add(u)
+            print(f"✓ {admin_email}: ustvarjen v DB (admin)")
         else:
             u.role = "admin"
             u.is_active = True
             u.name = admin_name
-        print(f"✓ {admin_email} ima role=admin v DB")
+            u.password_hash = pw_hash  # vedno posodobi (env je truth)
+            print(f"✓ {admin_email}: posodobljen v DB (admin, geslo)")
 
     print("✓ Bootstrap končan")
     return 0

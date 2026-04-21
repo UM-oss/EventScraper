@@ -262,21 +262,40 @@ def login():
         email = request.form.get("email", "").lower().strip()
         password = request.form.get("password", "")
 
-        user = AUTH_USERS.get(email)
-        if user and user["password_hash"]:
-            if bcrypt.checkpw(password.encode(), user["password_hash"].encode()):
-                session["user_email"] = email
-                session["user_name"] = user["name"]
-                session.permanent = True
-                _login_attempts.pop(client_ip, None)
-                # Sinhroniziraj v DB + posodobi last_login_at
-                try:
-                    with get_db() as db:
-                        u = get_or_create_user(db, email, user["name"])
-                        u.last_login_at = datetime.utcnow()
-                except Exception:
-                    pass
-                return redirect(url_for("index"))
+        # 1. Poskusi DB User.password_hash (primary, persistira na Render)
+        password_hash = None
+        user_name = email
+        try:
+            with get_db() as db:
+                db_user = db.query(User).filter(User.email == email).first()
+                if db_user and db_user.is_active and db_user.password_hash:
+                    password_hash = db_user.password_hash
+                    user_name = db_user.name or email
+        except Exception:
+            pass
+
+        # 2. Fallback na auth.yaml (legacy / bootstrap admin)
+        if not password_hash:
+            user_yaml = AUTH_USERS.get(email)
+            if user_yaml and user_yaml.get("password_hash"):
+                password_hash = user_yaml["password_hash"]
+                user_name = user_yaml.get("name", email)
+
+        if password_hash and bcrypt.checkpw(password.encode(), password_hash.encode()):
+            session["user_email"] = email
+            session["user_name"] = user_name
+            session.permanent = True
+            _login_attempts.pop(client_ip, None)
+            try:
+                with get_db() as db:
+                    u = get_or_create_user(db, email, user_name)
+                    u.last_login_at = datetime.utcnow()
+                    # Migriraj password_hash iz yaml v DB če manjka
+                    if not u.password_hash:
+                        u.password_hash = password_hash
+            except Exception:
+                pass
+            return redirect(url_for("index"))
 
         _record_attempt(client_ip)
         error = "Napačen email ali geslo"
@@ -1263,29 +1282,47 @@ def _save_auth_yaml():
 @app.route("/api/users")
 @admin_required
 def list_users():
-    """Vrne seznam uporabnikov (kombinacija auth.yaml + DB stanja)."""
+    """Vrne seznam vseh uporabnikov (UNION DB + auth.yaml)."""
     import json as _json
     out = []
+    seen_emails = set()
     with get_db() as db:
-        db_users = {u.email.lower(): u for u in db.query(User).all()}
-        for email, u in AUTH_USERS.items():
-            db_u = db_users.get(email.lower())
+        # Primarno: vsi DB uporabniki
+        for u in db.query(User).filter(User.is_active == True).all():  # noqa
+            email = u.email.lower()
             allowed = []
-            if db_u and db_u.allowed_media:
+            if u.allowed_media:
                 try:
-                    allowed = _json.loads(db_u.allowed_media)
+                    allowed = _json.loads(u.allowed_media)
                 except Exception:
                     allowed = []
             out.append({
                 "email": email,
-                "name": u.get("name", email),
-                "role": db_u.role if db_u else "admin",
+                "name": u.name or email,
+                "role": u.role,
                 "allowed_media": allowed,
-                "last_login_at": db_u.last_login_at.isoformat() if (db_u and db_u.last_login_at) else None,
-                "created_at": db_u.created_at.isoformat() if (db_u and db_u.created_at) else None,
-                "in_db": db_u is not None,
+                "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+                "in_db": True,
+                "has_password": bool(u.password_hash),
             })
-        # Pridobi tudi seznam medijev za UI dropdown
+            seen_emails.add(email)
+
+        # Dodaj tudi auth.yaml uporabnike, ki še niso v DB
+        for email, u in AUTH_USERS.items():
+            if email.lower() in seen_emails:
+                continue
+            out.append({
+                "email": email,
+                "name": u.get("name", email),
+                "role": "admin",
+                "allowed_media": [],
+                "last_login_at": None,
+                "created_at": None,
+                "in_db": False,
+                "has_password": True,
+            })
+
         media_list = [{"id": m.id, "name": m.name} for m in db.query(MediaOutlet).all()]
     return jsonify({"users": out, "media_outlets": media_list})
 
@@ -1293,7 +1330,8 @@ def list_users():
 @app.route("/api/users", methods=["POST"])
 @admin_required
 def create_user():
-    """Ustvari novega uporabnika."""
+    """Ustvari novega uporabnika (shranjen v DB za persistenco na Render)."""
+    import json as _json
     data = get_json_or_400()
     email = (data.get("email") or "").lower().strip()
     name = (data.get("name") or email).strip()
@@ -1307,25 +1345,30 @@ def create_user():
         abort(400, description="Geslo mora imeti najmanj 6 znakov")
     if role not in ("admin", "editor"):
         abort(400, description="Role mora biti 'admin' ali 'editor'")
-    if email in (e.lower() for e in AUTH_USERS):
-        abort(400, description="Uporabnik s tem emailom že obstaja")
 
-    # 1. auth.yaml — geslo (bcrypt)
     pw_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
-    AUTH_USERS[email] = {"name": name, "password_hash": pw_hash}
-    auth_config["users"] = [
-        {"email": e, "name": d["name"], "password_hash": d["password_hash"]}
-        for e, d in AUTH_USERS.items()
-    ]
-    _save_auth_yaml()
 
-    # 2. DB — role + allowed_media
-    import json as _json
     with get_db() as db:
-        u = User(email=email, name=name, role=role, is_active=True,
-                 allowed_media=_json.dumps(allowed_media) if allowed_media else None,
-                 created_at=datetime.utcnow())
-        db.add(u)
+        existing = db.query(User).filter(User.email == email).first()
+        if existing and existing.is_active and existing.password_hash:
+            abort(400, description="Uporabnik s tem emailom že obstaja")
+        if existing:
+            # Reaktiviraj
+            existing.name = name
+            existing.role = role
+            existing.is_active = True
+            existing.password_hash = pw_hash
+            existing.allowed_media = _json.dumps(allowed_media) if allowed_media else None
+        else:
+            u = User(email=email, name=name, role=role, is_active=True,
+                     password_hash=pw_hash,
+                     allowed_media=_json.dumps(allowed_media) if allowed_media else None,
+                     created_at=datetime.utcnow())
+            db.add(u)
+
+    # Sync v in-memory cache za login (po naslednjem login-u DB se zaobide)
+    AUTH_USERS[email] = {"name": name, "password_hash": pw_hash}
+
     return jsonify({"ok": True, "email": email})
 
 
@@ -1336,36 +1379,29 @@ def update_user(email):
     import json as _json
     data = get_json_or_400()
     email = email.lower().strip()
-    if email not in (e.lower() for e in AUTH_USERS):
-        abort(404, description="Uporabnik ne obstaja")
-
-    changed_yaml = False
-    if "name" in data:
-        AUTH_USERS[email]["name"] = data["name"]
-        changed_yaml = True
-    if "password" in data and data["password"]:
-        if len(data["password"]) < 6:
-            abort(400, description="Geslo mora imeti najmanj 6 znakov")
-        AUTH_USERS[email]["password_hash"] = bcrypt.hashpw(
-            data["password"].encode(), bcrypt.gensalt()
-        ).decode()
-        changed_yaml = True
-    if changed_yaml:
-        auth_config["users"] = [
-            {"email": e, "name": d["name"], "password_hash": d["password_hash"]}
-            for e, d in AUTH_USERS.items()
-        ]
-        _save_auth_yaml()
 
     with get_db() as db:
         u = db.query(User).filter(User.email == email).first()
+        # Če ne obstaja v DB, preveri auth.yaml (legacy admin)
         if u is None:
-            u = User(email=email, name=AUTH_USERS[email]["name"], role="editor",
-                     is_active=True, created_at=datetime.utcnow())
+            if email not in (e.lower() for e in AUTH_USERS):
+                abort(404, description="Uporabnik ne obstaja")
+            u = User(email=email, name=AUTH_USERS[email]["name"], role="admin",
+                     is_active=True,
+                     password_hash=AUTH_USERS[email].get("password_hash"),
+                     created_at=datetime.utcnow())
             db.add(u)
             db.flush()
+
         if "name" in data:
             u.name = data["name"]
+        if "password" in data and data["password"]:
+            if len(data["password"]) < 6:
+                abort(400, description="Geslo mora imeti najmanj 6 znakov")
+            new_hash = bcrypt.hashpw(data["password"].encode(), bcrypt.gensalt()).decode()
+            u.password_hash = new_hash
+            # Sync v in-memory cache
+            AUTH_USERS[email] = {"name": u.name, "password_hash": new_hash}
         if "role" in data:
             if data["role"] not in ("admin", "editor"):
                 abort(400, description="Role mora biti 'admin' ali 'editor'")
@@ -1382,26 +1418,21 @@ def update_user(email):
 @app.route("/api/users/<email>", methods=["DELETE"])
 @admin_required
 def delete_user(email):
-    """Pobriši uporabnika."""
+    """Pobriši uporabnika (deaktiviraj v DB + odstrani iz auth.yaml)."""
     email = email.lower().strip()
     me = (session.get("user_email") or "").lower()
     if email == me:
         abort(400, description="Ne moreš pobrisati samega sebe")
-    if email not in (e.lower() for e in AUTH_USERS):
-        abort(404)
-
-    AUTH_USERS.pop(email, None)
-    auth_config["users"] = [
-        {"email": e, "name": d["name"], "password_hash": d["password_hash"]}
-        for e, d in AUTH_USERS.items()
-    ]
-    _save_auth_yaml()
 
     with get_db() as db:
         u = db.query(User).filter(User.email == email).first()
+        if not u and email not in (e.lower() for e in AUTH_USERS):
+            abort(404)
         if u:
-            u.is_active = False  # ne fizično pobrišemo (zaradi audit FK-jev)
+            u.is_active = False
+            u.password_hash = None  # ne more se več prijaviti
 
+    AUTH_USERS.pop(email, None)
     return jsonify({"ok": True})
 
 
