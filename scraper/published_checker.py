@@ -29,7 +29,8 @@ PORTAL_CALENDARS = {
 # *info portali uporabljajo enak Drupal template (Tailwind grid).
 # Pomurec ima drug stari portal — parser fallback.
 
-UA = "Mozilla/5.0 (compatible; EventScraperPublishedChecker/2.0)"
+UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+      "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
 
 class PublishedChecker:

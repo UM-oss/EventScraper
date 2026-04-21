@@ -1765,6 +1765,93 @@ def trigger_enrichment():
     return jsonify({"ok": True, "started": True, "scope": scope, "media_id": media_id})
 
 
+@app.route("/api/published-check/debug")
+@auth_required
+def debug_published_check():
+    """Diagnostika: kaj točno Render vidi za določen portal.
+    Uporabi: /api/published-check/debug?media=ptujinfo
+    """
+    from scraper.published_checker import PublishedChecker, PORTAL_CALENDARS
+    from scraper.dedup import normalize_text, check_against_published
+
+    media_id = request.args.get("media", "ptujinfo")
+    portal_url = PORTAL_CALENDARS.get(media_id)
+
+    out = {
+        "media_id": media_id,
+        "portal_url": portal_url,
+        "fetch_ok": False,
+        "events_found": 0,
+        "first_events": [],
+        "our_new_events_for_media": 0,
+        "matches_in_db": 0,
+        "first_match_examples": [],
+        "no_match_examples": [],
+        "raw_fetch_status": None,
+    }
+
+    if not portal_url:
+        out["error"] = f"PORTAL_CALENDARS nima vnosa za '{media_id}'"
+        return jsonify(out)
+
+    # 1. Test fetch
+    import requests as _r
+    try:
+        resp = _r.get(portal_url, timeout=15,
+                      headers={"User-Agent": "Mozilla/5.0 (compatible; EventScraperPublishedChecker/2.0)"})
+        out["raw_fetch_status"] = resp.status_code
+        out["raw_response_size"] = len(resp.text)
+    except Exception as e:
+        out["error"] = f"Fetch napaka: {e}"
+        return jsonify(out)
+
+    # 2. Test parser
+    try:
+        pc = PublishedChecker(max_pages=5)
+        published = pc.fetch_published_events(media_id)
+        out["fetch_ok"] = True
+        out["events_found"] = len(published)
+        out["first_events"] = [
+            {"title": p["title"], "date_start": p["date_start"].isoformat()}
+            for p in published[:10]
+        ]
+    except Exception as e:
+        out["error"] = f"Parser napaka: {e}"
+        return jsonify(out)
+
+    # 3. Test match z našo bazo
+    with get_db() as db:
+        rows = db.execute(
+            event_media.select().where(and_(
+                event_media.c.media_id == media_id,
+                event_media.c.status == "new",
+            ))
+        ).fetchall()
+        out["our_new_events_for_media"] = len(rows)
+
+        for row in rows:
+            ev = db.query(Event).get(row.event_id)
+            if not ev or not ev.date_start:
+                continue
+            matched = check_against_published(ev.title, ev.date_start, published)
+            if matched:
+                out["matches_in_db"] += 1
+                if len(out["first_match_examples"]) < 5:
+                    out["first_match_examples"].append({
+                        "id": ev.id,
+                        "title": ev.title,
+                        "date": ev.date_start.isoformat(),
+                    })
+            elif len(out["no_match_examples"]) < 5:
+                out["no_match_examples"].append({
+                    "id": ev.id,
+                    "title": ev.title,
+                    "date": ev.date_start.isoformat(),
+                })
+
+    return jsonify(out)
+
+
 @app.route("/api/published-check/run", methods=["POST"])
 @auth_required
 def run_published_check():
