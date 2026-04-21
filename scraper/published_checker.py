@@ -10,6 +10,13 @@ import requests
 from datetime import date, timedelta
 from bs4 import BeautifulSoup
 
+# cloudscraper premosti Cloudflare blokiranje na *info portalih
+try:
+    import cloudscraper
+    HAS_CLOUDSCRAPER = True
+except ImportError:
+    HAS_CLOUDSCRAPER = False
+
 from scraper.dedup import normalize_text, check_against_published
 
 logger = logging.getLogger("scraper")
@@ -32,16 +39,31 @@ PORTAL_CALENDARS = {
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
+DEFAULT_HEADERS = {
+    "User-Agent": UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "sl-SI,sl;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+}
+
 
 class PublishedChecker:
     """Preverja že objavljene dogodke."""
 
     def __init__(self, max_pages: int = 5):
-        self.session = requests.Session()
-        self.session.headers.update({"User-Agent": UA})
+        # Cloudscraper premosti Cloudflare zaščito (potreben za *info portale)
+        if HAS_CLOUDSCRAPER:
+            self.session = cloudscraper.create_scraper(
+                browser={"browser": "chrome", "platform": "darwin", "mobile": False}
+            )
+            logger.debug("PublishedChecker uses cloudscraper")
+        else:
+            self.session = requests.Session()
+            logger.warning("cloudscraper ni nameščen, uporabljam navadni requests")
+        self.session.headers.update(DEFAULT_HEADERS)
         self._cache = {}
-        # Koliko strani koledarja preglati za vsak portal.
-        # Drupal *info portali imajo paginacijo ?page=0,1,2,...
         self.max_pages = max_pages
 
     # ---------------- PARSERS ----------------

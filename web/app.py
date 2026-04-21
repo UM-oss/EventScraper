@@ -1794,13 +1794,13 @@ def debug_published_check():
         out["error"] = f"PORTAL_CALENDARS nima vnosa za '{media_id}'"
         return jsonify(out)
 
-    # 1. Test fetch
-    import requests as _r
+    # 1. Test fetch z istim sessionom kot PublishedChecker (cloudscraper)
     try:
-        resp = _r.get(portal_url, timeout=15,
-                      headers={"User-Agent": "Mozilla/5.0 (compatible; EventScraperPublishedChecker/2.0)"})
+        pc_test = PublishedChecker(max_pages=1)
+        resp = pc_test.session.get(portal_url, timeout=20)
         out["raw_fetch_status"] = resp.status_code
         out["raw_response_size"] = len(resp.text)
+        out["uses_cloudscraper"] = "cloudscraper" in str(type(pc_test.session)).lower()
     except Exception as e:
         out["error"] = f"Fetch napaka: {e}"
         return jsonify(out)
