@@ -1,13 +1,12 @@
-# Render.com Blueprint za Event Scraper
+# Render.com Blueprint za Event Scraper (FREE konfiguracija)
 # Dokumentacija: https://render.com/docs/blueprint-spec
 #
-# Zaženi:
-#   1. Git repo dodaj v Render (https://dashboard.render.com/blueprints)
-#   2. Render bo prebral ta fajl in zgradil:
-#      - PostgreSQL bazo (free 90 dni, nato ~$7/mes)
-#      - Web service za Flask dashboard
-#      - Cron job za dnevno scrapanje ob 6:00 (Starter $7/mes)
-#   3. Po deployu odpri /uporabniki in dodaj uporabnika
+# Vsebuje:
+#   - PostgreSQL bazo (free 90 dni, 1GB; nato ~$7/mes)
+#   - Web service za Flask dashboard (free, sleeps po 15 min idle)
+#
+# Dnevno scrapanje teče preko GitHub Actions (free, glej .github/workflows/daily-scrape.yml).
+# Če bi raje plačal Render cron job ($7/mes), glej DEPLOYMENT.md za dodatek.
 
 databases:
   - name: event-scraper-db
@@ -47,7 +46,7 @@ services:
           name: event-scraper-db
           property: connectionString
 
-      # Disabled scheduler v web service-u — uporabljamo Render Cron
+      # Scheduler izklopljen v web service-u — uporabljamo GitHub Actions cron
       - key: EVENT_SCRAPER_SCHEDULER
         value: "0"
 
@@ -78,38 +77,3 @@ services:
 
       - key: GEMINI_API_KEY
         sync: false   # opcijsko, za AI generiranje opisov
-
-  # ============================================================
-  # DAILY SCRAPE (cron job ob 6:00 CET)
-  # ============================================================
-  # Cron jobs so plačljivi (~$7/mes). Če ne želiš, izklopi in
-  # uporabi alternativo (GitHub Actions free 2000 min/mes).
-  - type: cron
-    name: event-scraper-daily
-    runtime: python
-    plan: starter   # cron jobs nimajo free tier-a
-    region: frankfurt
-    pythonVersion: "3.11"
-    branch: main
-    schedule: "0 5 * * *"   # 06:00 CEST (= 05:00 UTC) vsak dan
-
-    buildCommand: |
-      pip install --upgrade pip
-      pip install -r requirements.txt
-
-    startCommand: |
-      python scripts/daily_scrape.py
-
-    envVars:
-      - key: EVENT_SCRAPER_DATABASE_URL
-        fromDatabase:
-          name: event-scraper-db
-          property: connectionString
-      - key: EVENT_SCRAPER_VALIDATE
-        value: "0"
-      - key: LOG_LEVEL
-        value: INFO
-      - key: LOG_JSON
-        value: "1"
-      - key: GEMINI_API_KEY
-        sync: false
