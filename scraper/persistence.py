@@ -157,7 +157,8 @@ def upsert_event(
         existing.is_active = True
 
         changed, edits = _apply_event_data_to_model(existing, event_data, is_new=False)
-        categorize_event(existing)
+        # NE re-kategoriziraj obstoječih dogodkov — uporabnikova zahteva.
+        # Kategorizacija velja samo za nove dogodke (spodaj).
 
         if _is_too_long_exhibition(existing) or not _has_at_least_one_key_field(existing):
             existing.is_active = False
