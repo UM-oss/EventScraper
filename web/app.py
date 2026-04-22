@@ -653,6 +653,12 @@ def update_event_field(event_id):
     if field not in ALLOWED:
         abort(400, description=f"Polje '{field}' ni dovoljeno za urejanje.")
 
+    # Validacija event_type — samo 8 dovoljenih kategorij
+    if field == "event_type" and value:
+        from scraper.categorizer import ALLOWED_TYPES, normalize_event_type
+        if value not in ALLOWED_TYPES:
+            value = normalize_event_type(value)
+
     with get_db() as db:
         event = db.query(Event).get(event_id)
         if not event:

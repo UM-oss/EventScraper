@@ -970,6 +970,9 @@
                     <a href="{{ event.source_url or event.detail_url }}" target="_blank" rel="noopener"
                        class="btn btn-ghost btn-sm" title="Odpri izvirni vir tega dogodka v novem zavihku">↗ Odpri vir</a>
                     {% endif %}
+                    {% if event.image_url %}
+                    <button class="btn btn-ghost btn-sm" onclick="downloadImage('{{ event.image_url }}', '{{ event.title|e }}')" title="Prenesi sliko na disk">⬇ Prenesi sliko</button>
+                    {% endif %}
 
                     <div class="menu-wrap">
                         <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleMenu({{ event.id }})" title="Več">⋯</button>
@@ -1205,10 +1208,9 @@
         // Inline edit (za "+ prizorišče" / "+ tip")
         const isType = field === 'event_type';
         const datalist = isType ? `<datalist id="dl-${eventId}-${field}">
-            <option value="koncert"><option value="gledalisce"><option value="film">
-            <option value="razstava"><option value="predavanje"><option value="delavnica">
-            <option value="festival"><option value="sport"><option value="otroski">
-            <option value="kulinarika"><option value="zabava"><option value="vodeni-ogled">
+            <option value="glasba"><option value="kultura"><option value="literatura">
+            <option value="predstava"><option value="sport"><option value="sejmi">
+            <option value="za otroke"><option value="ostalo">
         </datalist>` : '';
         container.innerHTML = `${datalist}
             <input type="text" id="inp-${eventId}-${field}" class="field-edit-input" placeholder="${label}..."

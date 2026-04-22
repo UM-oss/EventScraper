@@ -6,45 +6,76 @@ Standardizira event_type in target_audience iz surovih podatkov
 
 import re
 
-# Mapiranje surovih kategorij → standardizirani event_type
-# Ključi so lowercase vzorci, vrednosti so standardizirane kategorije
+# Standardizirano: 8 fiksnih kategorij za vse dogodke (uporabnikova zahteva)
+ALLOWED_TYPES = ("glasba", "kultura", "literatura", "predstava",
+                 "sport", "sejmi", "za otroke", "ostalo")
+
+# Mapiranje surovih kategorij → ciljna kategorija
+# Vrstni red ni naključen — bolj specifični vzorci morajo biti prvi.
 EVENT_TYPE_MAP = {
-    # Razstave
-    "razstav": "razstava",
-    "vizualna umetnost": "razstava",
-    "exhibition": "razstava",
-    # Glasba
-    "glasba": "koncert",
-    "koncert": "koncert",
-    "music": "koncert",
-    "jazz": "koncert",
-    "rock": "koncert",
-    "pop": "koncert",
-    # Gledališče
-    "gledališč": "gledalisce",
-    "predstav": "gledalisce",
-    "ples": "gledalisce",
-    "theater": "gledalisce",
-    "balet": "gledalisce",
-    "opera": "gledalisce",
-    "komedij": "gledalisce",
-    "lutkov": "gledalisce",
-    # Film
-    "film": "film",
-    "kino": "film",
-    "cinema": "film",
-    # Predavanja / izobraževanje
-    "predavanj": "predavanje",
-    "okrogla miza": "predavanje",
-    "pogovor": "predavanje",
-    "lecture": "predavanje",
-    # Delavnice
-    "delavnic": "delavnica",
-    "workshop": "delavnica",
-    "ustvarjaln": "delavnica",
-    # Festivali
-    "festival": "festival",
-    # Šport
+    # === ZA OTROKE (najprej, ker druge kategorije lahko prevladajo) ===
+    "otroš": "za otroke",
+    "za otroke": "za otroke",
+    "za mlade": "za otroke",
+    "mladinsk": "za otroke",
+    "družin": "za otroke",
+    "pravljic": "za otroke",
+    "lutkov": "za otroke",
+    "družinsk": "za otroke",
+
+    # === LITERATURA ===
+    "literatur": "literatura",
+    "knjig": "literatura",
+    "branj": "literatura",
+    "pisateljev": "literatura",
+    "poezij": "literatura",
+    "pesnik": "literatura",
+    "roman": "literatura",
+    "predstavitev knjige": "literatura",
+    "predstavitev zbirke": "literatura",
+    "literarni večer": "literatura",
+    "literarno srečanje": "literatura",
+    "knjižni večer": "literatura",
+    "novinarska konferenca": "literatura",
+
+    # === GLASBA ===
+    "glasba": "glasba",
+    "koncert": "glasba",
+    "music": "glasba",
+    "jazz": "glasba",
+    "rock": "glasba",
+    "pop": "glasba",
+    "klasik": "glasba",
+    "simfon": "glasba",
+    "orkest": "glasba",
+    "festival glasb": "glasba",
+    "klubski večer": "glasba",
+    "dj ": "glasba",
+    "techno": "glasba",
+    "elektronska glasba": "glasba",
+    "zborovsk": "glasba",
+
+    # === PREDSTAVA (gledališče, ples, opera, komedija, film, stand-up) ===
+    "gledališč": "predstava",
+    "predstav": "predstava",
+    "ples ": "predstava",
+    "plesn": "predstava",
+    "theater": "predstava",
+    "balet": "predstava",
+    "opera": "predstava",
+    "komedij": "predstava",
+    "monodram": "predstava",
+    "stand-up": "predstava",
+    "stand up": "predstava",
+    "improvizacij": "predstava",
+    "kabaret": "predstava",
+    "musical": "predstava",
+    "film": "predstava",
+    "kino": "predstava",
+    "cinema": "predstava",
+    "filmsk": "predstava",
+
+    # === SPORT ===
     "šport": "sport",
     "tek ": "sport",
     "pohod": "sport",
@@ -52,39 +83,53 @@ EVENT_TYPE_MAP = {
     "maraton": "sport",
     "turnir": "sport",
     "tekmovanj": "sport",
-    # Sejmi / tržnice
-    "sejem": "sejem",
-    "tržnic": "sejem",
-    "trg": "sejem",
-    # Otroški
-    "otroš": "otroski",
-    "za otroke": "otroski",
-    "za mlade": "otroski",
-    "mladinsk": "otroski",
-    "družin": "otroski",
-    "pravljic": "otroski",
-    # Kulinarika
-    "kulinar": "kulinarika",
-    "degustacij": "kulinarika",
-    "vino": "kulinarika",
-    "čokolad": "kulinarika",
-    # Vodeni ogledi
-    "voden ogled": "vodeni-ogled",
-    "vodenje": "vodeni-ogled",
-    "voden sprehod": "vodeni-ogled",
-    # Zabava
-    "zabav": "zabava",
-    "party": "zabava",
-    "stand-up": "zabava",
-    "kviz": "zabava",
-    "družabn": "zabava",
-    # Kulturna prireditev (splošno)
+    "joga": "sport",
+    "fitnes": "sport",
+    "tenis": "sport",
+    "nogomet": "sport",
+    "košarka": "sport",
+    "rolerji": "sport",
+    "smučanj": "sport",
+    "plavanj": "sport",
+
+    # === SEJMI ===
+    "sejem": "sejmi",
+    "sejmi": "sejmi",
+    "tržnic": "sejmi",
+    "bolšjak": "sejmi",
+    "kramars": "sejmi",
+    "izmenjevalnic": "sejmi",
+    "razprodaja": "sejmi",
+
+    # === KULTURA (razstave, predavanja, delavnice, kulinarika, vodeni ogledi, etno) ===
+    "razstav": "kultura",
+    "vizualna umetnost": "kultura",
+    "exhibition": "kultura",
+    "vernisaž": "kultura",
+    "predavanj": "kultura",
+    "okrogla miza": "kultura",
+    "pogovor": "kultura",
+    "lecture": "kultura",
+    "delavnic": "kultura",
+    "workshop": "kultura",
+    "ustvarjaln": "kultura",
+    "kulinar": "kultura",
+    "degustacij": "kultura",
+    "vino": "kultura",
+    "čokolad": "kultura",
+    "voden ogled": "kultura",
+    "vodenje": "kultura",
+    "voden sprehod": "kultura",
     "kulturna prireditev": "kultura",
     "kulturni dogodek": "kultura",
     "kultura": "kultura",
     "dan odprtih vrat": "kultura",
     "odprtje": "kultura",
     "prireditev na prostem": "kultura",
+    "festival": "kultura",
+    "etnografsk": "kultura",
+    "muzej": "kultura",
+    "galerij": "kultura",
 }
 
 # Mapiranje za target_audience
@@ -101,26 +146,54 @@ AUDIENCE_PATTERNS = {
 def categorize_event_type(categories=None, title=None, description=None):
     """
     Določi standardizirani event_type iz surovih podatkov.
-    Preveri categories → title → description (po prioriteti).
+    Vedno vrne eno od 8 dovoljenih kategorij; "ostalo" če ni ujemanja.
+
+    Priority: 'za otroke' > 'literatura' > 'glasba' > 'predstava' > 'sport' > 'sejmi' > 'kultura' > 'ostalo'.
+    Zaradi tega so vzorci v EVENT_TYPE_MAP urejeni v tem vrstnem redu.
     """
-    # Združi vsa besedila za iskanje
     texts = []
     if categories:
         texts.append(categories.lower())
     if title:
         texts.append(title.lower())
-    # Description samo kot zadnji fallback
-    if description and not texts:
-        texts.append(description[:200].lower())
+    if description:
+        texts.append(description[:300].lower())
 
     search_text = " ".join(texts)
 
-    # Poišči ujemanje po prioriteti
     for pattern, event_type in EVENT_TYPE_MAP.items():
         if pattern in search_text:
             return event_type
 
-    return None
+    return "ostalo"
+
+
+def normalize_event_type(value):
+    """Preslikaj poljuben event_type v eno od 8 dovoljenih kategorij.
+    Uporablja se pri migraciji obstoječih dogodkov."""
+    if not value:
+        return "ostalo"
+    v = value.lower().strip()
+    if v in ALLOWED_TYPES:
+        return v
+    # Mapiranje legacy vrednosti
+    legacy_map = {
+        "koncert": "glasba",
+        "gledalisce": "predstava",
+        "gledališče": "predstava",
+        "film": "predstava",
+        "razstava": "kultura",
+        "predavanje": "kultura",
+        "delavnica": "kultura",
+        "festival": "kultura",
+        "kulinarika": "kultura",
+        "vodeni-ogled": "kultura",
+        "zabava": "predstava",
+        "otroski": "za otroke",
+        "otroški": "za otroke",
+        "sejem": "sejmi",
+    }
+    return legacy_map.get(v, "ostalo")
 
 
 def categorize_target_audience(categories=None, title=None, description=None):
@@ -223,6 +296,12 @@ def categorize_event(event):
         et = categorize_event_type(event.categories, event.title, event.description)
         if et:
             event.event_type = et
+            changed = True
+    else:
+        # Normaliziraj v eno od 8 dovoljenih kategorij (legacy → nova)
+        normalized = normalize_event_type(event.event_type)
+        if normalized != event.event_type:
+            event.event_type = normalized
             changed = True
 
     if not event.target_audience:
