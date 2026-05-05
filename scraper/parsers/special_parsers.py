@@ -542,3 +542,105 @@ class VisitSkofjaLokaParser(BaseParser):
 
         logger.info(f"  Visit Škofja Loka: skupaj {len(events_raw)} dogodkov")
         return events_raw
+
+
+@ParserRegistry.register("prlekija")
+class PrlekijaParser(BaseParser):
+    """Prlekija-on.net — scrape SAMO iz /dogodki strani (ne iz splošnih novic).
+
+    URL pattern dogodka: /dogodki/<NUMBER>/<slug>
+    Listing stran: list_url (config), z linki na detail strani.
+    Detail: <h1> naslov, og:image slika, og:description opis,
+            datum + ura v besedilu (regex).
+    """
+
+    @property
+    def needs_html(self):
+        return True
+
+    @property
+    def skip_details(self):
+        return False  # uporabljamo detail page za datum/uro
+
+    # URL pattern za prepoznavo dogodka (ne novice)
+    _EVENT_URL_RE = re.compile(r'/dogodki/(\d+)/([^/?#]+)')
+
+    def parse(self, config, html=None):
+        if not html:
+            return []
+
+        soup = BeautifulSoup(html, "html.parser")
+        events_raw = []
+        seen = set()
+
+        for a in soup.select("a[href]"):
+            href = a.get("href", "")
+            m = self._EVENT_URL_RE.search(href)
+            if not m:
+                continue
+
+            title = a.get_text(strip=True)
+            if not title or len(title) < 4:
+                continue  # preskoči prazne / image-only linke
+
+            event_id = m.group(1)
+            if event_id in seen:
+                continue
+            seen.add(event_id)
+
+            full_url = href if href.startswith("http") else config.base_url.rstrip("/") + href
+
+            events_raw.append({
+                "title": title,
+                "detail_url": full_url,
+                "source_url": full_url,
+                "source_event_id": event_id,
+            })
+
+        logger.info(f"  Prlekija: {len(events_raw)} dogodkov iz /dogodki listing")
+        return events_raw
+
+    def parse_detail_page(self, html, base_url, event_data=None):
+        """Iz detail strani izvleci datum, uro, sliko, opis."""
+        if not html:
+            return event_data or {}
+
+        soup = BeautifulSoup(html, "html.parser")
+        out = event_data or {}
+
+        # Naslov iz h1 (boljši od listing teksta)
+        h1 = soup.select_one("h1")
+        if h1:
+            t = h1.get_text(strip=True)
+            if t:
+                out["title"] = t
+
+        # Datum: 23. 5. 2026 (vzemi prvega — to je dogodek datum)
+        text = soup.get_text(separator='\n', strip=True)
+        date_m = re.search(r'\b(\d{1,2})\.\s*(\d{1,2})\.\s*(20\d{2})\b', text)
+        if date_m:
+            try:
+                out["date_start"] = date(int(date_m.group(3)),
+                                          int(date_m.group(2)),
+                                          int(date_m.group(1)))
+            except ValueError:
+                pass
+
+        # Ura: ob HH:MM (vzemi prvega)
+        time_m = re.search(r'\bob\s*(\d{1,2})[:.](\d{2})', text)
+        if time_m:
+            h, m = int(time_m.group(1)), int(time_m.group(2))
+            if 0 <= h <= 23 and 0 <= m <= 59:
+                out["time_start"] = f"{h:02d}:{m:02d}"
+
+        # og:image
+        og_img = soup.select_one('meta[property="og:image"]')
+        if og_img and og_img.get("content"):
+            out["image_url"] = BaseParser.resolve_url(og_img["content"], base_url)
+
+        # og:description
+        og_desc = soup.select_one('meta[property="og:description"]')
+        if og_desc and og_desc.get("content"):
+            out["description"] = og_desc["content"].strip()
+
+        return out

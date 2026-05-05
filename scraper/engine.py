@@ -152,12 +152,24 @@ class ScraperEngine:
             urls.append(paginated_url)
         return urls
 
-    def scrape_detail_page(self, url, config):
-        """Poberi podrobnosti iz podstrani dogodka"""
+    def scrape_detail_page(self, url, config, parser=None):
+        """Poberi podrobnosti iz podstrani dogodka.
+
+        Če parser implementira parse_detail_page(html, base_url), ga uporabi
+        (custom logika za vire kot Prlekija, kjer datum/ura nista v fixed CSS).
+        Sicer fallback na generične CSS selektorje iz YAML configa.
+        """
         details = {}
         html = self.fetch_page(url, config)
         if not html:
             return details
+
+        # Custom parser detail logic (npr. Prlekija)
+        if parser is not None and hasattr(parser, "parse_detail_page"):
+            try:
+                return parser.parse_detail_page(html, config.base_url)
+            except Exception as e:
+                logger.warning(f"  Custom parse_detail_page failed: {e}")
 
         soup = BeautifulSoup(html, "lxml")
         ds = config.detail_selectors
@@ -263,7 +275,7 @@ class ScraperEngine:
                 for event_data in all_events:
                     detail_url = event_data.get("detail_url")
                     if detail_url:
-                        details = self.scrape_detail_page(detail_url, config)
+                        details = self.scrape_detail_page(detail_url, config, parser=parser)
                         for key, value in details.items():
                             if value and not event_data.get(key):
                                 event_data[key] = value

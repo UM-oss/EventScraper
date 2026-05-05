@@ -1,14 +1,13 @@
 source:
   id: "prlekija"
-  name: "Prlekija-on.net"
+  name: "Prlekija-on.net (dogodki)"
   base_url: "https://www.prlekija-on.net"
   list_url: "https://www.prlekija-on.net/dogodki"
-  feed_url: "https://www.prlekija-on.net/rss/"
   region: "pomurska"
 
-  # RSS feed - novičarski portal, vsebuje tudi dogodke
-  # Polja: title, link, description, media:thumbnail, enclosure, pubDate
-  parser_type: "rss"
+  # Custom parser — bere SAMO iz /dogodki listing strani.
+  # NE iz splošnega RSS-a (ki vključuje novice).
+  parser_type: "prlekija"
 
   pagination:
     type: "query"
@@ -20,7 +19,7 @@ source:
   detail_selectors: {}
 
   settings:
-    delay_between_requests: 2
-    timeout: 30
+    delay_between_requests: 1
+    timeout: 20
     encoding: "utf-8"
-    user_agent: "EventScraper/1.0 (regional media aggregator)"
+    user_agent: "Mozilla/5.0 (compatible; EventScraper/1.0)"
