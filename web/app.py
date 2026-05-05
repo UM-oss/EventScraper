@@ -1442,6 +1442,12 @@ def delete_user(email):
     return jsonify({"ok": True})
 
 
+@app.route("/healthz")
+def healthz():
+    """Lahkoten health endpoint za Render (brez auth, brez DB query)."""
+    return "ok", 200
+
+
 @app.route("/health")
 @auth_required
 def health_page():
