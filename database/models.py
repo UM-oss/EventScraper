@@ -223,6 +223,8 @@ class Event(Base):
     # === SLIKE / OPISI ===
     image_url = Column(String(1000), nullable=True)
     image_source = Column(String(20), nullable=True)
+    image_width = Column(Integer, nullable=True)
+    image_height = Column(Integer, nullable=True)
     description_source = Column(String(20), nullable=True)
     source_url = Column(String(1000), nullable=True)
     detail_url = Column(String(1000), nullable=True)

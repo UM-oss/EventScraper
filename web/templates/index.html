@@ -886,7 +886,10 @@
                     <img src="{{ img_src }}" alt="" loading="lazy"
                          onerror="this.parentElement.parentElement.innerHTML='<div class=event-image-placeholder>Slika nedosegljiva<button class=\'btn btn-sm btn-ghost\' onclick=\'fetchImage({{ event.id }})\'>Poišči</button></div>'">
                 </a>
-                {% if event.image_source == 'fallback' %}<div class="event-image-badge">Simbolna</div>{% endif %}
+                {% if event.image_source == 'fallback' %}<div class="event-image-badge">Simbolna</div>
+                {% elif event.image_width and event.image_height and (event.image_width < 520 or event.image_height < 300) %}
+                <div class="event-image-badge" style="background:rgba(217,119,6,0.9);color:white;" title="Slika je premajhna za objavo (manjše od 520×300)">⚠ {{ event.image_width }}×{{ event.image_height }}</div>
+                {% endif %}
                 {% else %}
                 <div class="event-image-placeholder">
                     <span>Brez slike</span>

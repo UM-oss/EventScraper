@@ -50,6 +50,72 @@ CATEGORY_IMAGE_MAP = {
 
 DEFAULT_IMAGE = "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=800&q=80"
 
+# Min. dimenzije slike za objavo (uporabnikova zahteva)
+MIN_IMAGE_WIDTH = 520
+MIN_IMAGE_HEIGHT = 300
+
+
+def upgrade_to_larger_image(url):
+    """Poskuša pretvoriti thumbnail URL v polno velikost.
+
+    Ujema znane vzorce:
+    - NetMedia: /styles/768x440/public/... → /public/...
+    - WordPress: image-300x200.jpg → image.jpg
+    - Generic ?w=320 → odstrani query
+    """
+    if not url:
+        return url
+
+    # NetMedia pattern (sobotainfo, mariborinfo, ...)
+    url = re.sub(r'/styles/\d+x\d+/public/', '/styles/1024x585/public/', url)
+
+    # WordPress thumbnail pattern: name-WIDTHxHEIGHT.ext
+    url = re.sub(r'-(\d{2,4})x(\d{2,4})(\.[a-zA-Z]+)(\?|$)', r'\3\4', url)
+
+    # Generic ?w=NNN&h=NNN (samo če sta majhna)
+    m = re.search(r'[?&](w|width)=(\d+)', url)
+    if m and int(m.group(2)) < MIN_IMAGE_WIDTH:
+        # Probaj povečati
+        url = re.sub(r'([?&])(w|width)=\d+', f'\\1\\2={max(int(m.group(2)) * 2, 1024)}', url)
+    return url
+
+
+def _get_image_dimensions(url, timeout=5):
+    """Vrne (width, height) slike, ali None če nerazlokno.
+
+    Uporablja Pillow z byte-stream-om (samo dovolj za header parse).
+    Slika do 100KB se prebere v celoti, večja samo header.
+    """
+    try:
+        resp = requests.get(url, timeout=timeout, stream=True,
+                             headers={"User-Agent": USER_AGENT,
+                                      "Range": "bytes=0-65536"})
+        if resp.status_code not in (200, 206):
+            return None
+        from io import BytesIO
+        try:
+            from PIL import Image
+        except ImportError:
+            return None
+        data = resp.raw.read(65536)
+        try:
+            img = Image.open(BytesIO(data))
+            return img.size  # (w, h)
+        except Exception:
+            return None
+    except Exception:
+        return None
+
+
+def _image_meets_min_size(url):
+    """Preveri če slika dosega MIN_IMAGE_WIDTH × MIN_IMAGE_HEIGHT.
+    Vrne True (dovolj velika), False (premajhna), None (ne moremo preveriti)."""
+    dims = _get_image_dimensions(url)
+    if dims is None:
+        return None  # nezanesljivo
+    w, h = dims
+    return w >= MIN_IMAGE_WIDTH and h >= MIN_IMAGE_HEIGHT
+
 
 def _is_valid_image_url(url):
     """Preveri ali URL kaže na sliko (vsaj po končnici/tipu)."""
@@ -87,11 +153,25 @@ def _extract_og_image(html, base_url):
         soup = BeautifulSoup(html, "html.parser")
 
         # og:image (lahko jih je več - vzemi prvega)
+        # Preveri tudi og:image:width hint da preskočimo jasno premajhne
+        og_w_tag = soup.find("meta", property="og:image:width")
+        og_h_tag = soup.find("meta", property="og:image:height")
+        try:
+            og_w = int(og_w_tag.get("content")) if og_w_tag else None
+            og_h = int(og_h_tag.get("content")) if og_h_tag else None
+        except (ValueError, AttributeError):
+            og_w = og_h = None
+
         for prop in ["og:image", "og:image:secure_url", "og:image:url"]:
             tag = soup.find("meta", property=prop)
             if tag and tag.get("content"):
                 url = urljoin(base_url, tag["content"])
                 if _is_valid_image_url(url):
+                    # Če imamo dim hint in je premajhna, poskusi upgrade
+                    if og_w and og_h and (og_w < MIN_IMAGE_WIDTH or og_h < MIN_IMAGE_HEIGHT):
+                        url = upgrade_to_larger_image(url)
+                    else:
+                        url = upgrade_to_larger_image(url)
                     return url
 
         # twitter:image
@@ -100,14 +180,14 @@ def _extract_og_image(html, base_url):
             if tag and tag.get("content"):
                 url = urljoin(base_url, tag["content"])
                 if _is_valid_image_url(url):
-                    return url
+                    return upgrade_to_larger_image(url)
 
         # link rel="image_src"
         link = soup.find("link", rel="image_src")
         if link and link.get("href"):
             url = urljoin(base_url, link["href"])
             if _is_valid_image_url(url):
-                return url
+                return upgrade_to_larger_image(url)
 
         # JSON-LD schema.org Event.image
         for script in soup.find_all("script", type="application/ld+json"):
@@ -122,15 +202,15 @@ def _extract_og_image(html, base_url):
                     if isinstance(img, str):
                         url = urljoin(base_url, img)
                         if _is_valid_image_url(url):
-                            return url
+                            return upgrade_to_larger_image(url)
                     elif isinstance(img, list) and img:
                         first = img[0]
                         if isinstance(first, str):
-                            return urljoin(base_url, first)
+                            return upgrade_to_larger_image(urljoin(base_url, first))
                         if isinstance(first, dict) and first.get("url"):
-                            return urljoin(base_url, first["url"])
+                            return upgrade_to_larger_image(urljoin(base_url, first["url"]))
                     elif isinstance(img, dict) and img.get("url"):
-                        return urljoin(base_url, img["url"])
+                        return upgrade_to_larger_image(urljoin(base_url, img["url"]))
             except Exception:
                 continue
 
@@ -552,9 +632,23 @@ def fill_missing_images(db, limit=100, progress=None, max_seconds=180,
         e.event_type = item["event_type"]
         e.title = item["title"]
         try:
-            return (item["id"], find_fallback_image(e))
+            url = find_fallback_image(e)
+            if not url:
+                return (item["id"], None, None, None)
+            # Pridobi dimenzije
+            dims = _get_image_dimensions(url) or (None, None)
+            w, h = dims
+            # Če je premajhna in URL ni že "upgraded", poskusi upgrade
+            if w and h and (w < MIN_IMAGE_WIDTH or h < MIN_IMAGE_HEIGHT):
+                bigger = upgrade_to_larger_image(url)
+                if bigger and bigger != url:
+                    new_dims = _get_image_dimensions(bigger) or (None, None)
+                    if new_dims[0] and new_dims[0] >= w:  # vsaj enako velika
+                        url = bigger
+                        w, h = new_dims
+            return (item["id"], url, w, h)
         except Exception:
-            return (item["id"], None)
+            return (item["id"], None, None, None)
 
     started = _dt.utcnow()
     results_map = {}
@@ -568,9 +662,11 @@ def fill_missing_images(db, limit=100, progress=None, max_seconds=180,
                 logger.warning(f"Enrichment slik ustavljen po {max_seconds}s ({completed}/{total})")
                 break
             try:
-                eid, img_url = fut.result(timeout=15)
+                result = fut.result(timeout=15)
+                eid, img_url = result[0], result[1]
+                w, h = (result[2], result[3]) if len(result) >= 4 else (None, None)
                 if img_url:
-                    results_map[eid] = img_url
+                    results_map[eid] = (img_url, w, h)
             except Exception:
                 pass
             if progress is not None:
@@ -584,8 +680,10 @@ def fill_missing_images(db, limit=100, progress=None, max_seconds=180,
     for event in events:
         if event.id not in results_map:
             continue
-        image_url = results_map[event.id]
+        image_url, w, h = results_map[event.id]
         event.image_url = image_url
+        event.image_width = w
+        event.image_height = h
         if (image_url == DEFAULT_IMAGE
                 or image_url in CATEGORY_IMAGE_MAP.values()
                 or image_url in VENUE_IMAGE_MAP.values()):
