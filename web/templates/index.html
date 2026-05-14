@@ -976,6 +976,7 @@
                     {% if event.image_url %}
                     <button class="btn btn-ghost btn-sm" onclick="downloadImage('{{ event.image_url }}', '{{ event.title|e }}')" title="Prenesi sliko na disk">⬇ Prenesi sliko</button>
                     {% endif %}
+                    <button class="btn btn-ghost btn-sm" onclick="setImageManual({{ event.id }})" title="Prilepi URL svoje slike (npr. večja različica)">🖼 Zamenjaj sliko</button>
 
                     <div class="menu-wrap">
                         <button class="btn btn-ghost btn-sm btn-icon" onclick="toggleMenu({{ event.id }})" title="Več">⋯</button>
@@ -1118,6 +1119,26 @@
             window.open(url, '_blank');
             showToast('Odpiranje v novem zavihku');
         }
+    }
+
+    async function setImageManual(eventId) {
+        const url = prompt('Prilepi URL nove slike (priporočljivo ≥520×300):');
+        if (!url || !url.trim()) return;
+        try {
+            const resp = await fetch('/api/event/' + eventId + '/set-image', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({image_url: url.trim()})
+            });
+            const data = await resp.json();
+            if (data.ok) {
+                const dims = (data.width && data.height) ? ` (${data.width}×${data.height})` : '';
+                showToast('Slika zamenjana' + dims);
+                refreshDashboard();
+            } else {
+                showToast(data.error || 'Napaka');
+            }
+        } catch (e) { showToast('Napaka: ' + e.message); }
     }
 
     async function fetchImage(eventId) {

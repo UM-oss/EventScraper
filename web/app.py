@@ -761,6 +761,41 @@ def fetch_event_description(event_id):
         return jsonify({"ok": False, "error": "Opisa ni mogoče najti"})
 
 
+@app.route("/api/event/<int:event_id>/set-image", methods=["POST"])
+@auth_required
+def set_event_image(event_id):
+    """Ročno nastavi URL slike za dogodek (npr. uporabnik prilepi svojo)."""
+    data = get_json_or_400()
+    new_url = (data.get("image_url") or "").strip()
+    if not new_url or not new_url.startswith("http"):
+        abort(400, description="Veljavni URL slike je obvezen")
+
+    with get_db() as db:
+        event = db.query(Event).get(event_id)
+        if not event:
+            abort(404)
+        old = event.image_url
+        event.image_url = new_url
+        event.image_source = "manual"
+        # Pridobi dimenzije
+        try:
+            from scraper.image_fallback import _get_image_dimensions
+            dims = _get_image_dimensions(new_url)
+            if dims:
+                event.image_width, event.image_height = dims
+            else:
+                event.image_width = event.image_height = None
+        except Exception:
+            event.image_width = event.image_height = None
+        log_event_edit(db, event, "image_url", old, new_url, source="manual")
+        return jsonify({
+            "ok": True,
+            "image_url": new_url,
+            "width": event.image_width,
+            "height": event.image_height,
+        })
+
+
 @app.route("/api/event/<int:event_id>/fetch-image", methods=["POST"])
 @auth_required
 def fetch_event_image(event_id):

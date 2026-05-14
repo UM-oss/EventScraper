@@ -57,11 +57,7 @@ MIN_IMAGE_HEIGHT = 300
 
 def upgrade_to_larger_image(url):
     """Poskuša pretvoriti thumbnail URL v polno velikost.
-
-    Ujema znane vzorce:
-    - NetMedia: /styles/768x440/public/... → /public/...
-    - WordPress: image-300x200.jpg → image.jpg
-    - Generic ?w=320 → odstrani query
+    Vrstno preverja različne vzorce; vrne najboljšega.
     """
     if not url:
         return url
@@ -72,11 +68,40 @@ def upgrade_to_larger_image(url):
     # WordPress thumbnail pattern: name-WIDTHxHEIGHT.ext
     url = re.sub(r'-(\d{2,4})x(\d{2,4})(\.[a-zA-Z]+)(\?|$)', r'\3\4', url)
 
+    # Drupal image styles: /styles/STYLE/public/... → /sites/default/files/... (original)
+    url = re.sub(r'/sites/[^/]+/files/styles/[^/]+/public/', r'/sites/default/files/', url)
+
+    # MGML cache pattern: /media/cache/CC/CC/HASH.jpg — cache je vedno tisti razrez,
+    # poskusi zamenjati z 'big' ali pa odstrani (ni vedno mogoče, ker je hash-based)
+    if '/media/cache/' in url:
+        # Poskusi /media/cache/big/... ali /media/cache/large/...
+        for size_name in ('big', 'large', 'full', 'original'):
+            new = re.sub(r'/media/cache/[^/]+/', f'/media/cache/{size_name}/', url, count=1)
+            if new != url:
+                url = new
+                break
+
+    # MojaObcina pattern: /uploads/thumbnails/... → /uploads/full/... ali /uploads/...
+    url = re.sub(r'/uploads/thumbnails/', '/uploads/', url)
+    url = re.sub(r'/uploads/thumbs/', '/uploads/', url)
+    url = re.sub(r'/uploads/small/', '/uploads/large/', url)
+
+    # imgresizer / cdn-resize: /thumbs/WIDTHxHEIGHT/...
+    url = re.sub(r'/thumbs/\d+x\d+/', '/', url)
+    url = re.sub(r'/thumbnail/\d+x\d+/', '/original/', url)
+
+    # Cloudinary: /image/upload/w_400/... → /image/upload/w_1200/...
+    url = re.sub(r'(/image/upload/[^/]*?)w_\d+', r'\1w_1200', url)
+    url = re.sub(r'(/image/upload/[^/]*?)c_thumb,', r'\1c_fill,', url)
+
     # Generic ?w=NNN&h=NNN (samo če sta majhna)
     m = re.search(r'[?&](w|width)=(\d+)', url)
     if m and int(m.group(2)) < MIN_IMAGE_WIDTH:
-        # Probaj povečati
         url = re.sub(r'([?&])(w|width)=\d+', f'\\1\\2={max(int(m.group(2)) * 2, 1024)}', url)
+    m = re.search(r'[?&](h|height)=(\d+)', url)
+    if m and int(m.group(2)) < MIN_IMAGE_HEIGHT:
+        url = re.sub(r'([?&])(h|height)=\d+', f'\\1\\2={max(int(m.group(2)) * 2, 600)}', url)
+
     return url
 
 
