@@ -1,0 +1,16 @@
+source:
+  id: "fb-hostel-celica"
+  name: "FB: Hostel Celica Ljubljana"
+  base_url: "https://www.facebook.com/HostelCelica"
+  list_url: "https://www.facebook.com/HostelCelica/events"
+  region: "ljubljana"
+  parser_type: "manual"
+  disabled: false
+
+  settings:
+    delay_between_requests: 2
+    timeout: 20
+
+  notes: |
+    Facebook /events stran — potrebuje Graph API token.
+    Dogodki preko email-to-event sistema.

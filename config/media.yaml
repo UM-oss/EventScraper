@@ -158,6 +158,8 @@ all_sources:
     - "gt22"
     - "kibla"
     - "pekarna"
+    - "minoriti"              # NEW: Nuxt SPA, čaka na integration
+    - "fb-dvorana-gustaf"     # NEW: FB events, čaka na Graph API
     # Gorenjska
     - "visit-bled"
     - "visit-bohinj"
@@ -166,6 +168,11 @@ all_sources:
     - "layerjeva-hisa"
     - "radolca"
     - "visit-jesenice"
+    - "fb-grad-khislstein"    # NEW: FB events
+    # Ljubljana — FB stranice (čakajo na Graph API)
+    - "fb-hostel-celica"
+    - "fb-kino-siska"
+    - "fb-gala-hala"
     # Dolenjska / Posavje
     - "dolenjski-muzej"
     - "kstm-sevnica"

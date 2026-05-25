@@ -1,0 +1,16 @@
+source:
+  id: "fb-grad-khislstein"
+  name: "FB: Grad Khislstein Kranj"
+  base_url: "https://www.facebook.com/GradKhislsteinKranj"
+  list_url: "https://www.facebook.com/GradKhislsteinKranj/events"
+  region: "gorenjska"
+  parser_type: "manual"
+  disabled: false
+
+  settings:
+    delay_between_requests: 2
+    timeout: 20
+
+  notes: |
+    Facebook /events stran — potrebuje Graph API token.
+    Dogodki preko email-to-event sistema.

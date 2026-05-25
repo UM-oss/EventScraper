@@ -42,12 +42,14 @@ class SourceConfig(BaseModel):
     detail_selectors: Dict = Field(default_factory=dict)
     json_fields: Dict = Field(default_factory=dict)
     settings: SourceSettings = Field(default_factory=SourceSettings)
+    notes: Optional[str] = None
 
     VALID_PARSERS: ClassVar[Set[str]] = {
         "html", "rss", "ical", "manual",
         "kulturnik", "kulturnik-rss",
         "mgml", "kinodvor", "kinosiska",
         "mojaobcina", "cankarjevdom", "visitskofjaloka",
+        "prlekija",
     }
 
     @field_validator("parser_type")

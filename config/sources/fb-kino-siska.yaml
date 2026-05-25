@@ -1,0 +1,17 @@
+source:
+  id: "fb-kino-siska"
+  name: "FB: Kino Šiška Ljubljana"
+  base_url: "https://www.facebook.com/kinosiska.si"
+  list_url: "https://www.facebook.com/kinosiska.si/events"
+  region: "ljubljana"
+  parser_type: "manual"
+  disabled: false
+
+  settings:
+    delay_between_requests: 2
+    timeout: 20
+
+  notes: |
+    Facebook /events stran — potrebuje Graph API token.
+    Opomba: že imamo HTML scraper za kinosiska.si — ta FB vir je dodaten.
+    Trenutno preko email-to-event sistema.

@@ -1,0 +1,23 @@
+source:
+  id: "minoriti"
+  name: "Minoriti (Kulturna četrt Maribor)"
+  base_url: "https://www.minoriti.si"
+  list_url: "https://www.minoriti.si/dogodki"
+  region: "maribor"
+
+  # MANUAL: stran je Nuxt.js SPA, eventi so v JS payload-u brez JSON-LD.
+  # Za avtomatski scrape rabi: datocms API token ali Playwright headless browser.
+  # Trenutno dogodki od tega vira pridejo preko email-to-event sistema.
+  parser_type: "manual"
+  disabled: false
+
+  settings:
+    delay_between_requests: 2
+    timeout: 20
+    encoding: "utf-8"
+    user_agent: "Mozilla/5.0 (compatible; EventScraper/2.0)"
+
+  notes: |
+    TODO: Nuxt.js SPA — potrebna posebna integracija.
+    URL pattern: /dogodki/<slug>
+    Vir podatkov: /_payload.json (Nuxt compressed format) ali datocms API.

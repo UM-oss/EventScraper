@@ -1,0 +1,16 @@
+source:
+  id: "fb-gala-hala"
+  name: "FB: Gala Hala (Metelkova) Ljubljana"
+  base_url: "https://www.facebook.com/GalaHala"
+  list_url: "https://www.facebook.com/GalaHala/events"
+  region: "ljubljana"
+  parser_type: "manual"
+  disabled: false
+
+  settings:
+    delay_between_requests: 2
+    timeout: 20
+
+  notes: |
+    Facebook /events stran — potrebuje Graph API token.
+    Dogodki preko email-to-event sistema.

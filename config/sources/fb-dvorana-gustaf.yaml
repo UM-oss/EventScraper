@@ -1,0 +1,17 @@
+source:
+  id: "fb-dvorana-gustaf"
+  name: "FB: Dvorana Gustaf, Pekarna Maribor"
+  base_url: "https://www.facebook.com/DvoranaGustafPekarna"
+  list_url: "https://www.facebook.com/DvoranaGustafPekarna/events"
+  region: "maribor"
+  parser_type: "manual"
+  disabled: false
+
+  settings:
+    delay_between_requests: 2
+    timeout: 20
+
+  notes: |
+    Facebook /events stran zahteva login + Graph API token.
+    Brez Meta Developer App-a in FB Page Access Token-a ni možno avtomatsko.
+    Dogodki se trenutno pošiljajo preko email-to-event sistema.
