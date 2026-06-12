@@ -34,6 +34,11 @@ PORTAL_FEEDS = {
 # Backward compat — staro ime za zunanjo kodo
 PORTAL_CALENDARS = PORTAL_FEEDS
 
+# Modul-nivojski TTL cache (Faza 3G): {media_id: (timestamp, events)}
+# Deljen med vsemi PublishedChecker instancami v istem procesu.
+_GLOBAL_CACHE = {}
+_CACHE_TTL = 3600  # 1 ura
+
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
       "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
 
@@ -116,9 +121,22 @@ class PublishedChecker:
         return events
 
     def fetch_published_events(self, media_id):
-        """Vrne seznam že objavljenih dogodkov za specifičen medij (cached)."""
+        """Vrne seznam že objavljenih dogodkov za specifičen medij.
+
+        Dvonivojski cache:
+        - per-instance (self._cache) — znotraj enega scrape cikla
+        - modul-nivojski TTL (_GLOBAL_CACHE) — deljen med klici v istem
+          procesu do _CACHE_TTL sekund (Faza 3G).
+        """
         if media_id in self._cache:
             return self._cache[media_id]
+
+        # Modul-nivojski TTL cache
+        import time as _t
+        cached = _GLOBAL_CACHE.get(media_id)
+        if cached and (_t.time() - cached[0]) < _CACHE_TTL:
+            self._cache[media_id] = cached[1]
+            return cached[1]
 
         url = PORTAL_FEEDS.get(media_id)
         if not url:
@@ -141,6 +159,7 @@ class PublishedChecker:
         cutoff = date.today() - timedelta(days=7)
         events = [e for e in events if e["date_start"] >= cutoff]
         self._cache[media_id] = events
+        _GLOBAL_CACHE[media_id] = (_t.time(), events)
         logger.info(f"  Portal '{media_id}': {len(events)} že objavljenih dogodkov (RSS)")
         return events
 
@@ -163,6 +182,9 @@ class PublishedChecker:
         logger.info(f"  Skupaj {total} že objavljenih dogodkov na vseh portalih")
         return total
 
-    def reset_cache(self):
-        """Ponastavi cache (npr. pred novim scrape ciklom)."""
+    def reset_cache(self, clear_global=False):
+        """Ponastavi cache. clear_global=True izprazni tudi modul-nivojski TTL
+        (uporabi ko želiš prisilno svežo poizvedbo, npr. ročni 'Preveri portale')."""
         self._cache = {}
+        if clear_global:
+            _GLOBAL_CACHE.clear()

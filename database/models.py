@@ -270,6 +270,7 @@ class Event(Base):
         Index("idx_event_date", "date_start"),
         Index("idx_event_active_date", "is_active", "date_start"),
         Index("idx_event_source_active", "source_id", "is_active"),
+        Index("idx_event_source_lastseen", "source_id", "last_seen_at"),  # skip-if-fresh
         UniqueConstraint("source_id", "source_event_id", name="uq_source_event"),
     )
 

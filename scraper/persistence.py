@@ -59,23 +59,31 @@ class UpsertStats:
 
 
 def _is_too_long_exhibition(event):
-    """Razstave > 2 dni, ki niso 'odprtja', preskočimo."""
-    if event.event_type != "razstava":
-        return False
+    """Razstave > 2 dni, ki niso 'odprtja', preskočimo.
+
+    Tip dogodka je po novi kategorizaciji 'kultura' (ne več 'razstava'),
+    zato razstavo zaznamo po ključni besedi v naslovu/kategorijah.
+    """
     if not (event.date_start and event.date_end):
+        return False
+    text = f"{event.title or ''} {event.categories or ''}".lower()
+    is_exhibition = any(w in text for w in ["razstav", "exhibition", "vizualna umetnost"])
+    if not is_exhibition:
         return False
     duration = (event.date_end - event.date_start).days
     if duration <= 2:
         return False
-    title_lower = (event.title or "").lower()
-    is_opening = any(w in title_lower for w in ["odprtje", "otvoritev", "vernisaž", "opening"])
+    is_opening = any(w in text for w in ["odprtje", "otvoritev", "vernisaž", "opening"])
     return not is_opening
 
 
 def _has_at_least_one_key_field(event):
-    """Vsaj eno od (prizorišče, tip).
-    (Organizator in vstopnina nista več prikazana v UI, zato nista obvezna.)"""
-    return bool(event.location or event.address or event.event_type)
+    """Vsaj eno od (prizorišče, smiselni tip).
+    Tip 'ostalo' ne šteje, ker ga kategorizator vedno dodeli kot fallback —
+    sicer bi prešli prav vsi (tudi prazni) dogodki."""
+    has_venue = bool(event.location or event.address)
+    has_meaningful_type = bool(event.event_type) and event.event_type != "ostalo"
+    return has_venue or has_meaningful_type
 
 
 def _apply_event_data_to_model(event: Event, data: dict, is_new: bool):

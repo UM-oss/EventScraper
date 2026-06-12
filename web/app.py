@@ -1966,7 +1966,7 @@ def run_published_check():
             from scraper.published_checker import PublishedChecker, PORTAL_CALENDARS
             from scraper.dedup import check_against_published
             checker = PublishedChecker(max_pages=5)
-            checker.reset_cache()
+            checker.reset_cache(clear_global=True)  # ročni klic = sveža poizvedba
 
             media_ids = [media_id_filter] if media_id_filter else list(PORTAL_CALENDARS.keys())
 

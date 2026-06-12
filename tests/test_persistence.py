@@ -11,10 +11,15 @@ from database.models import Event, EventEdit
 from scraper.persistence import upsert_event, mark_stale_events
 from scraper.dedup import DedupConfig
 
+# Relativni prihodnji datumi (testi ne smejo zastareti)
+FUTURE = date.today() + timedelta(days=30)
+FUTURE2 = date.today() + timedelta(days=31)
+FUTURE_FAR = date.today() + timedelta(days=120)
+
 
 def _data(title, date_start, **kw):
     """Hitri factory za scrape data dict."""
-    out = {"title": title, "date_start": date_start, "event_type": "koncert", "location": "Test Hall"}
+    out = {"title": title, "date_start": date_start, "event_type": "glasba", "location": "Test Hall"}
     out.update(kw)
     return out
 
@@ -26,7 +31,7 @@ def _data(title, date_start, **kw):
 def test_upsert_new_event(db_session):
     decision, ev = upsert_event(
         db_session,
-        _data("Koncert Siddharte", date(2026, 6, 1), source_event_id="abc"),
+        _data("Koncert Siddharte", FUTURE, source_event_id="abc"),
         source_id="kulturnik-rss-ljubljana",
         region="ljubljana",
     )
@@ -51,7 +56,7 @@ def test_upsert_skips_past_events(db_session):
 def test_upsert_skips_event_without_key_fields(db_session):
     decision, ev = upsert_event(
         db_session,
-        {"title": "Brez podatkov", "date_start": date(2026, 6, 1)},
+        {"title": "Brez podatkov", "date_start": FUTURE},
         source_id="x", region="ljubljana",
     )
     assert decision == "skipped"
@@ -61,8 +66,8 @@ def test_upsert_skips_long_exhibition(db_session):
     decision, _ = upsert_event(
         db_session,
         _data("Dolgotrajna razstava",
-              date(2026, 6, 1),
-              date_end=date(2026, 9, 1),
+              FUTURE,
+              date_end=FUTURE_FAR,
               event_type="razstava"),
         source_id="x", region="ljubljana",
     )
@@ -73,8 +78,8 @@ def test_upsert_keeps_exhibition_opening(db_session):
     decision, _ = upsert_event(
         db_session,
         _data("Odprtje razstave Picasso",
-              date(2026, 6, 1),
-              date_end=date(2026, 9, 1),
+              FUTURE,
+              date_end=FUTURE_FAR,
               event_type="razstava"),
         source_id="x", region="ljubljana",
     )
@@ -88,7 +93,7 @@ def test_upsert_keeps_exhibition_opening(db_session):
 def test_upsert_updates_existing_event_by_source_event_id(db_session):
     # Prvi scrape
     upsert_event(db_session,
-                 _data("Koncert", date(2026, 6, 1), source_event_id="ev1"),
+                 _data("Koncert", FUTURE, source_event_id="ev1"),
                  source_id="src1", region="ljubljana")
     db_session.commit()
 
@@ -98,7 +103,7 @@ def test_upsert_updates_existing_event_by_source_event_id(db_session):
 
     # Drugi scrape — isti dogodek, posodobljen opis
     decision, ev = upsert_event(db_session,
-                                 _data("Koncert", date(2026, 6, 1),
+                                 _data("Koncert", FUTURE,
                                        source_event_id="ev1",
                                        description="Nov opis prišel."),
                                  source_id="src1", region="ljubljana")
@@ -112,7 +117,7 @@ def test_upsert_updates_existing_event_by_source_event_id(db_session):
 def test_upsert_does_not_overwrite_manual_description(db_session):
     """Če je urednik ročno napisal opis, scraper ga NE prepiše."""
     upsert_event(db_session,
-                 _data("Dogodek", date(2026, 6, 1), source_event_id="m1",
+                 _data("Dogodek", FUTURE, source_event_id="m1",
                        description="Originalni opis"),
                  source_id="src1", region="ljubljana")
     db_session.commit()
@@ -124,7 +129,7 @@ def test_upsert_does_not_overwrite_manual_description(db_session):
 
     # Ponovni scrape
     upsert_event(db_session,
-                 _data("Dogodek", date(2026, 6, 1), source_event_id="m1",
+                 _data("Dogodek", FUTURE, source_event_id="m1",
                        description="Spet drug opis iz vira"),
                  source_id="src1", region="ljubljana")
     db_session.commit()
@@ -139,14 +144,14 @@ def test_upsert_does_not_overwrite_manual_description(db_session):
 
 def test_upsert_detects_fuzzy_duplicate(db_session):
     upsert_event(db_session,
-                 _data("Bass Fighters pres. Ed Rush", date(2026, 6, 1),
+                 _data("Bass Fighters pres. Ed Rush", FUTURE,
                        time_start="21:00", location="Gustaf"),
                  source_id="src1", region="maribor")
     db_session.commit()
 
     decision, _ = upsert_event(db_session,
                                 _data("Ed Rush (UK) v Mariboru – Drum & Bass večer",
-                                      date(2026, 6, 1), time_start="21:00",
+                                      FUTURE, time_start="21:00",
                                       location="Bass Fighters"),
                                 source_id="src2", region="maribor")
     assert decision == "duplicate"
@@ -160,10 +165,10 @@ def test_mark_stale_events(db_session):
     """Dogodki ki jih scraper ne najde več, dobijo is_active=False."""
     # Prvi scrape: ustvari A in B
     upsert_event(db_session,
-                 _data("Dogodek A", date(2026, 6, 1), source_event_id="a"),
+                 _data("Dogodek A", FUTURE, source_event_id="a"),
                  source_id="src1", region="ljubljana")
     upsert_event(db_session,
-                 _data("Dogodek B", date(2026, 6, 2), source_event_id="b"),
+                 _data("Dogodek B", FUTURE2, source_event_id="b"),
                  source_id="src1", region="ljubljana")
     db_session.commit()
 
@@ -174,7 +179,7 @@ def test_mark_stale_events(db_session):
     time.sleep(0.05)
 
     upsert_event(db_session,
-                 _data("Dogodek A", date(2026, 6, 1), source_event_id="a"),
+                 _data("Dogodek A", FUTURE, source_event_id="a"),
                  source_id="src1", region="ljubljana")
     db_session.commit()
 
@@ -191,7 +196,7 @@ def test_mark_stale_events(db_session):
 def test_mark_stale_does_not_delete(db_session):
     """Stale dogodki obstajajo še naprej — z editorial statusi."""
     upsert_event(db_session,
-                 _data("Stari dogodek", date(2026, 6, 1), source_event_id="z"),
+                 _data("Stari dogodek", FUTURE, source_event_id="z"),
                  source_id="src1", region="ljubljana")
     db_session.commit()
 

@@ -11,6 +11,8 @@ import hashlib
 import logging
 import re
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, date, timedelta
 from urllib.parse import urljoin, urlparse, urlencode, parse_qs, urlunparse
 
@@ -18,6 +20,12 @@ import yaml
 import requests
 import cloudscraper
 from bs4 import BeautifulSoup
+
+try:
+    import httpx
+    HAS_HTTPX = True
+except ImportError:
+    HAS_HTTPX = False
 
 # Dodaj parent dir v path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -40,6 +48,11 @@ import scraper.parsers.feed_parsers      # noqa: F401
 import scraper.parsers.special_parsers   # noqa: F401
 
 logger = logging.getLogger("scraper")
+
+
+class _Http403(Exception):
+    """Interna izjema za 403 → sproži cloudscraper fallback."""
+    pass
 
 
 class SourceConfig:
@@ -85,6 +98,13 @@ class ScraperEngine:
     Parserji so ločeni v scraper/parsers/ paketu.
     """
 
+    # Koliko virov scrapamo hkrati (network paralelizem)
+    SOURCE_WORKERS = int(os.environ.get("SCRAPE_SOURCE_WORKERS", "8"))
+    # Koliko detail strani hkrati znotraj enega vira
+    DETAIL_WORKERS = int(os.environ.get("SCRAPE_DETAIL_WORKERS", "4"))
+    # Globalna omejitev hkratnih HTTP zahtevkov (preprečuje preobremenitev)
+    MAX_TOTAL_HTTP = int(os.environ.get("SCRAPE_MAX_HTTP", "16"))
+
     def __init__(self):
         self.config_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -93,6 +113,23 @@ class ScraperEngine:
         self.session = requests.Session()
         self.cloud_session = cloudscraper.create_scraper()
         self.published_checker = PublishedChecker()
+
+        # Globalni semaphore — omeji skupno število hkratnih HTTP zahtevkov
+        self._http_semaphore = threading.Semaphore(self.MAX_TOTAL_HTTP)
+
+        # httpx klient z HTTP/2 + connection pooling (deljen med threadi)
+        if HAS_HTTPX:
+            limits = httpx.Limits(
+                max_connections=self.MAX_TOTAL_HTTP,
+                max_keepalive_connections=self.MAX_TOTAL_HTTP,
+                keepalive_expiry=30.0,
+            )
+            self.httpx_client = httpx.Client(
+                http2=True, follow_redirects=True, limits=limits,
+                timeout=httpx.Timeout(15.0, connect=8.0),
+            )
+        else:
+            self.httpx_client = None
 
     def load_sources(self):
         """Naloži vse YAML konfiguracije virov"""
@@ -114,20 +151,73 @@ class ScraperEngine:
         with open(media_path, "r", encoding="utf-8") as f:
             return yaml.safe_load(f)
 
+    def get_fresh_event_ids(self, source_ids, max_age_hours=20):
+        """Vrne {source_id: set(source_event_id)} za dogodke ki so:
+        - sveži (last_seen_at > now - max_age_hours)
+        - popolni (imajo opis IN sliko)
+        Za te preskočimo detail fetch (Faza 1B: skip-if-fresh).
+
+        Pri dnevnem scrape-u, kjer se 90% dogodkov ne spremeni, to prihrani
+        ogromno detail-page fetch-ov.
+        """
+        from sqlalchemy import and_, or_
+        cutoff = datetime.utcnow() - timedelta(hours=max_age_hours)
+        result = {}
+        db = Session()
+        try:
+            q = db.query(Event.source_id, Event.source_event_id).filter(
+                Event.last_seen_at > cutoff,
+                Event.source_event_id != None,  # noqa
+                Event.description != None,  # noqa
+                Event.description != "",
+                Event.image_url != None,  # noqa
+                Event.image_url != "",
+            )
+            if source_ids:
+                q = q.filter(Event.source_id.in_(source_ids))
+            for sid, seid in q.all():
+                result.setdefault(sid, set()).add(seid)
+        except Exception as e:
+            logger.warning(f"get_fresh_event_ids failed: {e}")
+        finally:
+            db.close()
+        return result
+
     def fetch_page(self, url, config, use_cloudscraper=False):
-        """Prenesi HTML stran z retry logiko."""
+        """Prenesi HTML stran z retry logiko.
+
+        Uporablja httpx (HTTP/2 + connection pool) če je na voljo, sicer requests.
+        Vse zahteve gredo skozi globalni semaphore (cap concurrency).
+        Pri 403 fallback na cloudscraper.
+        """
         headers = {"User-Agent": config.user_agent}
-        http_session = self.cloud_session if use_cloudscraper else self.session
         max_retries = 2
 
         for attempt in range(max_retries + 1):
             try:
-                resp = http_session.get(url, headers=headers, timeout=config.timeout)
-                resp.encoding = config.encoding
-                resp.raise_for_status()
-                return resp.text
-            except requests.RequestException as e:
-                # Fallback na cloudscraper pri 403
+                with self._http_semaphore:
+                    if use_cloudscraper:
+                        resp = self.cloud_session.get(url, headers=headers, timeout=config.timeout)
+                        resp.encoding = config.encoding
+                        resp.raise_for_status()
+                        return resp.text
+                    elif self.httpx_client is not None:
+                        resp = self.httpx_client.get(url, headers=headers)
+                        if resp.status_code == 403:
+                            raise _Http403()
+                        resp.raise_for_status()
+                        # httpx auto-dekodira; encoding hint
+                        resp.encoding = config.encoding
+                        return resp.text
+                    else:
+                        resp = self.session.get(url, headers=headers, timeout=config.timeout)
+                        resp.encoding = config.encoding
+                        resp.raise_for_status()
+                        return resp.text
+            except _Http403:
+                logger.info(f"  403 zaznana, poskušam s cloudscraper: {url}")
+                return self.fetch_page(url, config, use_cloudscraper=True)
+            except Exception as e:
                 if not use_cloudscraper and "403" in str(e):
                     logger.info(f"  403 zaznana, poskušam s cloudscraper: {url}")
                     return self.fetch_page(url, config, use_cloudscraper=True)
@@ -198,11 +288,95 @@ class ScraperEngine:
 
         return details
 
-    def scrape_source(self, config, dedup_config=None, session_id=None):
-        """Zaženi scraping za en vir z UPSERT logiko (Phase 1).
+    # =================================================================
+    # FETCH FAZA (network — teče paralelno) — BREZ DB write
+    # =================================================================
+    def fetch_source_events(self, config, fresh_ids=None):
+        """Pridobi seznam dogodkov iz vira (listing + detail strani).
 
-        Statusi v event_media in zgodovina v event_edits ostanejo nedotaknjeni.
-        Dogodki, ki jih scraper ne najde, se označijo z is_active=False.
+        Vsa omrežna komunikacija. NE piše v bazo.
+        `fresh_ids`: set source_event_id-jev ki so že sveži in popolni —
+                     zanje preskočimo detail fetch (skip-if-fresh, Faza 1B).
+
+        Vrne dict: {status, all_events, parser, error}
+          status: "ok" | "disabled" | "manual" | "error"
+        """
+        fresh_ids = fresh_ids or set()
+
+        if is_source_disabled(config.id):
+            return {"status": "disabled", "all_events": [], "parser": None}
+
+        parser = get_parser(config.parser_type, source_id=config.id, fetcher=self)
+        if parser is None:
+            from scraper.parsers.html_parser import HtmlParser
+            parser = HtmlParser(fetcher=self)
+
+        if config.parser_type == "manual":
+            return {"status": "manual", "all_events": [], "parser": parser}
+
+        all_events = []
+        try:
+            # 1. Listing
+            if not parser.needs_html:
+                all_events = parser.parse(config)
+            else:
+                urls = self.get_paginated_urls(config)
+                for url in urls:
+                    html = self.fetch_page(url, config)
+                    if not html:
+                        continue
+                    events_raw = parser.parse(config, html=html)
+                    if not events_raw:
+                        break
+                    all_events.extend(events_raw)
+
+            # 2. Detail strani (paralelno znotraj vira — Faza 3F)
+            if not parser.skip_details:
+                # Skip-if-fresh: za sveže+popolne dogodke ne fetchaj detaila
+                pending = [
+                    e for e in all_events
+                    if e.get("detail_url") and e.get("source_event_id") not in fresh_ids
+                ]
+                skipped_fresh = len(all_events) - len(pending)
+                if skipped_fresh:
+                    logger.info(f"  {config.name}: preskočenih {skipped_fresh} svežih detail strani")
+
+                if pending:
+                    self._fetch_details_parallel(pending, config, parser)
+
+            return {"status": "ok", "all_events": all_events, "parser": parser}
+
+        except Exception as e:
+            logger.error(f"  Fetch napaka {config.name}: {e}")
+            return {"status": "error", "all_events": all_events, "parser": parser, "error": str(e)}
+
+    def _fetch_details_parallel(self, events, config, parser):
+        """Paralelno poberi detail strani za seznam dogodkov (Faza 3F).
+        Mutira event dict-e na mestu (doda manjkajoča polja)."""
+        def _one(event_data):
+            detail_url = event_data.get("detail_url")
+            if not detail_url:
+                return
+            try:
+                details = self.scrape_detail_page(detail_url, config, parser=parser)
+                for key, value in details.items():
+                    if value and not event_data.get(key):
+                        event_data[key] = value
+            except Exception as e:
+                logger.debug(f"  Detail fetch failed {detail_url}: {e}")
+
+        workers = min(self.DETAIL_WORKERS, max(len(events), 1))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            list(pool.map(_one, events))
+
+    # =================================================================
+    # PERSIST FAZA (DB — teče serijsko za dedup korektnost)
+    # =================================================================
+    def persist_source_events(self, config, all_events, parser_status="ok",
+                              dedup_config=None, session_id=None):
+        """Shrani dogodke vira v bazo (upsert + mark-stale + log).
+
+        Serijsko (en vir naenkrat) da fuzzy dedup vidi predhodne vstavke.
         """
         db = Session()
         log = ScrapeLog(source_id=config.id, status="running", session_id=session_id)
@@ -210,84 +384,21 @@ class ScraperEngine:
         db.commit()
         scrape_started_at = log.started_at
 
-        all_events = []
         new_event_ids = []
         updated_event_ids = []
-        # Disabled vir — preskoči
-        if is_source_disabled(config.id):
+
+        if parser_status in ("disabled", "manual"):
             log.status = "skipped"
-            log.error_message = "disabled in YAML config"
+            log.error_message = parser_status
             log.finished_at = datetime.utcnow()
             db.commit()
             db.close()
             return {"found": 0, "new": 0, "updated": 0, "duplicates": 0,
-                    "stale": 0, "new_ids": [], "skipped_reason": "disabled"}
+                    "stale": 0, "new_ids": [], "updated_ids": [],
+                    "skipped_reason": parser_status}
 
         try:
-            # Poišči ustrezen parser
-            parser = get_parser(config.parser_type, source_id=config.id, fetcher=self)
-
-            if parser is None:
-                # Fallback na generični HTML parser
-                from scraper.parsers.html_parser import HtmlParser
-                parser = HtmlParser(fetcher=self)
-                logger.warning(f"  Ni registriranega parserja za {config.parser_type}, uporabam html")
-
-            # Ročni viri — preskočimo
-            if config.parser_type == "manual":
-                logger.info(f"  Ročni vir {config.name} - preskakujem avtomatski scraping")
-                log.status = "skipped"
-                log.events_found = 0
-                log.events_new = 0
-                log.finished_at = datetime.utcnow()
-                db.commit()
-                db.close()
-                return {"found": 0, "new": 0, "updated": 0, "duplicates": 0,
-                        "stale": 0, "new_ids": [], "updated_ids": [],
-                        "skipped_reason": "manual_parser"}
-
-            # Feed parserji sami pridobijo podatke
-            if not parser.needs_html:
-                all_events = parser.parse(config)
-            else:
-                # HTML parserji potrebujejo predhodni fetch
-                urls = self.get_paginated_urls(config)
-                logger.info(f"Scraping {config.name} ({len(urls)} strani)...")
-
-                for i, url in enumerate(urls):
-                    logger.info(f"  Stran {i+1}/{len(urls)}: {url}")
-                    html = self.fetch_page(url, config)
-                    if not html:
-                        continue
-
-                    events_raw = parser.parse(config, html=html)
-
-                    if not events_raw:
-                        logger.info(f"  Ni dogodkov na strani {i+1}, končujem paginacijo")
-                        break
-
-                    all_events.extend(events_raw)
-                    time.sleep(config.delay)
-
-            # Poberi podrobnosti za HTML parserje ki jih potrebujejo
-            if not parser.skip_details:
-                logger.info(f"  Pobiramo podrobnosti za {len(all_events)} dogodkov...")
-                for event_data in all_events:
-                    detail_url = event_data.get("detail_url")
-                    if detail_url:
-                        details = self.scrape_detail_page(detail_url, config, parser=parser)
-                        for key, value in details.items():
-                            if value and not event_data.get(key):
-                                event_data[key] = value
-                        time.sleep(config.delay)
-            else:
-                logger.info(f"  Preskakujem podstrani za {config.name}")
-
-            # ============== UPSERT logika (Phase 1) ==============
-            new_count = 0
-            updated_count = 0
-            dup_count = 0
-            skip_count = 0
+            new_count = updated_count = dup_count = skip_count = 0
 
             for event_data in all_events:
                 try:
@@ -307,21 +418,17 @@ class ScraperEngine:
                             updated_event_ids.append(event.id)
                     elif decision == "duplicate":
                         dup_count += 1
-                    else:  # skipped
+                    else:
                         skip_count += 1
                 except Exception as ev_err:
-                    # Napaka pri enem dogodku ne sme ustaviti vira
                     logger.warning(f"  Napaka pri dogodku '{event_data.get('title','')[:40]}': {ev_err}")
                     skip_count += 1
                     continue
 
             db.commit()
-
-            # Mark-stale: aktivni dogodki iz tega vira, ki jih nismo ponovno videli
             stale_count = mark_stale_events(db, config.id, scrape_started_at)
             db.commit()
 
-            # Posodobi log
             log.finished_at = datetime.utcnow()
             log.events_found = len(all_events)
             log.events_new = new_count
@@ -331,7 +438,6 @@ class ScraperEngine:
             log.status = "success"
             db.commit()
 
-            # Posodobi SourceHealth
             self._update_source_health(
                 db, config, success=True, events_found=len(all_events),
                 duration_ms=int((datetime.utcnow() - scrape_started_at).total_seconds() * 1000),
@@ -339,11 +445,9 @@ class ScraperEngine:
             db.commit()
 
             logger.info(
-                f"  Končano: {len(all_events)} najdenih, "
-                f"{new_count} novih, {updated_count} posodobljenih, "
-                f"{dup_count} duplikatov, {stale_count} označenih kot neaktivni"
+                f"  {config.name}: {len(all_events)} najdenih, {new_count} novih, "
+                f"{updated_count} posodobljenih, {dup_count} dup, {stale_count} neaktivni"
             )
-
         except Exception as e:
             log.status = "error"
             log.error_message = str(e)[:500]
@@ -354,20 +458,26 @@ class ScraperEngine:
                 db.commit()
             except Exception:
                 db.rollback()
-            logger.error(f"  Napaka pri scrapingu {config.name}: {e}")
+            logger.error(f"  Persist napaka {config.name}: {e}")
             raise
         finally:
             db.close()
 
         return {
-            "found": len(all_events),
-            "new": new_count,
-            "updated": updated_count,
-            "duplicates": dup_count,
-            "stale": stale_count,
-            "new_ids": new_event_ids,
-            "updated_ids": updated_event_ids,
+            "found": len(all_events), "new": new_count, "updated": updated_count,
+            "duplicates": dup_count, "stale": stale_count,
+            "new_ids": new_event_ids, "updated_ids": updated_event_ids,
         }
+
+    def scrape_source(self, config, dedup_config=None, session_id=None, fresh_ids=None):
+        """Backward-compatible wrapper: fetch + persist zaporedno (en vir).
+        Uporablja se za CLI test in posamezne klice."""
+        fetched = self.fetch_source_events(config, fresh_ids=fresh_ids)
+        return self.persist_source_events(
+            config, fetched["all_events"],
+            parser_status=fetched["status"],
+            dedup_config=dedup_config, session_id=session_id,
+        )
 
     def _enrich_per_source(self, new_ids, source_id, progress=None):
         """Per-source parallel enrichment.
@@ -664,51 +774,84 @@ class ScraperEngine:
         except Exception as e:
             logger.warning(f"Napaka pri preverjanju portalov: {e}")
 
-        # 2. Scrape virov (sources že določeni zgoraj)
+        # 2. Scrape virov — PARALELNI fetch (network) + SERIJSKI persist (DB).
+        # Fetch teče v thread pool-u (SOURCE_WORKERS hkrati); ko en vir konča
+        # fetch, ga glavna nit takoj persistira (serijsko = dedup korekten).
         total = len(sources)
         results = {}
-        all_new_ids = []  # ID-ji novih dogodkov samo iz tega zagona
+        all_new_ids = []
+
+        # Faza 1B: kateri dogodki so že sveži+popolni → preskoči detail fetch
+        fresh_map = self.get_fresh_event_ids(source_ids)
+        if fresh_map:
+            logger.info(f"Skip-if-fresh: {sum(len(v) for v in fresh_map.values())} svežih dogodkov")
+
         progress.update({
             "phase": "scraping",
             "total_sources": total,
             "current_index": 0,
-            "percent": 0,
+            "percent": 2,
         })
 
-        for i, source in enumerate(sources, 1):
-            # Preverimo cancel_event pred vsakim virom
-            if cancel_event is not None and cancel_event.is_set():
-                logger.warning(f"  Scrape PREKINJEN po viru {i-1}/{total}.")
-                progress.update({"phase": "cancelled", "percent": int(2 + 73 * (i - 1) / max(total, 1))})
-                results["_cancelled"] = True
-                results["_cancelled_at_index"] = i - 1
-                return results
+        completed = [0]
+        completed_lock = threading.Lock()
 
-            progress.update({
-                "current_source": source.name,
-                "current_source_id": source.id,
-                "current_index": i,
-                "percent": int(2 + 73 * (i - 1) / max(total, 1)),  # 2-75% za scrape fazo
-            })
+        def _fetch_with_retry(src):
+            """Fetch z retry (network). Teče v worker thread-u."""
+            if cancel_event is not None and cancel_event.is_set():
+                return src, {"status": "cancelled", "all_events": []}
             try:
-                result, attempts_used = retry_with_backoff(
-                    lambda s=source: self.scrape_source(s, dedup_config=dedup_config, session_id=session_id),
+                fetched, _ = retry_with_backoff(
+                    lambda s=src: self.fetch_source_events(s, fresh_ids=fresh_map.get(s.id)),
                     max_attempts=retry_attempts + 1,
                     base_delay=retry_base_delay,
                     max_delay=15.0,
                 )
-                if attempts_used > 1:
-                    result["retry_attempts"] = attempts_used - 1
-                results[source.id] = result
-                if isinstance(result, dict) and result.get("new_ids"):
-                    all_new_ids.extend(result["new_ids"])
-                    # PER-SOURCE ENRICHMENT — takoj obogati nove dogodke iz tega vira
-                    # (manjši batch = bolj zanesljivo, ne nakopiči se)
-                    self._enrich_per_source(result["new_ids"], source.id, progress)
+                return src, fetched
             except Exception as e:
-                # Po vseh retry-jih še vedno napaka — beleži in nadaljuj
-                results[source.id] = {"error": str(e), "retry_attempts": retry_attempts}
-                logger.error(f"  KONČNA napaka {source.id} po {retry_attempts + 1} poskusih: {e}")
+                return src, {"status": "error", "all_events": [], "error": str(e)}
+
+        with ThreadPoolExecutor(max_workers=self.SOURCE_WORKERS) as pool:
+            futures = {pool.submit(_fetch_with_retry, s): s for s in sources}
+            for future in as_completed(futures):
+                src, fetched = future.result()
+
+                with completed_lock:
+                    completed[0] += 1
+                    idx = completed[0]
+                progress.update({
+                    "current_source": src.name,
+                    "current_source_id": src.id,
+                    "current_index": idx,
+                    "percent": int(2 + 73 * idx / max(total, 1)),
+                })
+
+                if cancel_event is not None and cancel_event.is_set():
+                    progress.update({"phase": "cancelled", "percent": int(2 + 73 * idx / max(total, 1))})
+                    results["_cancelled"] = True
+                    results["_cancelled_at_index"] = idx
+                    # Prekini — ostali fetchi se dokončajo a jih ne persistira-mo
+                    break
+
+                status = fetched.get("status", "ok")
+                if status in ("error",):
+                    results[src.id] = {"error": fetched.get("error", "fetch error")}
+                    logger.error(f"  Fetch končna napaka {src.id}: {fetched.get('error')}")
+                    continue
+
+                # SERIJSKI persist (DB) — dedup vidi vse predhodne vstavke
+                try:
+                    result = self.persist_source_events(
+                        src, fetched["all_events"],
+                        parser_status=status,
+                        dedup_config=dedup_config, session_id=session_id,
+                    )
+                    results[src.id] = result
+                    if result.get("new_ids"):
+                        all_new_ids.extend(result["new_ids"])
+                except Exception as e:
+                    results[src.id] = {"error": str(e)}
+                    logger.error(f"  Persist napaka {src.id}: {e}")
 
         # 3. Per-source enrichment je že potekal med scrape-om (takoj po vsakem viru).
         # Tu samo še preverimo če so kateri dogodki ostali brez opisa/slike — npr.

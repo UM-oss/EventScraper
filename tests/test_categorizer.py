@@ -7,30 +7,39 @@ from scraper.categorizer import categorize_event_type, categorize_target_audienc
 
 
 class TestCategorizeEventType:
-    def test_koncert(self):
-        assert categorize_event_type("Koncert Siddharte") == "koncert"
+    """8 fiksnih kategorij: glasba, kultura, literatura, predstava,
+    sport, sejmi, za otroke, ostalo."""
 
-    def test_razstava(self):
-        assert categorize_event_type("Razstava sodobne umetnosti") == "razstava"
+    def test_glasba(self):
+        assert categorize_event_type("Koncert Siddharte") == "glasba"
 
-    def test_film(self):
-        assert categorize_event_type("Filmska projekcija: Kino pod zvezdami") == "film"
+    def test_kultura_razstava(self):
+        assert categorize_event_type("Razstava sodobne umetnosti") == "kultura"
 
-    def test_gledalisce(self):
-        assert categorize_event_type("Gledališka predstava Hamlet") == "gledalisce"
+    def test_predstava_film(self):
+        assert categorize_event_type("Filmska projekcija: Kino pod zvezdami") == "predstava"
 
-    def test_delavnica(self):
-        assert categorize_event_type("Kreativna delavnica za otroke") == "delavnica"
+    def test_predstava_gledalisce(self):
+        assert categorize_event_type("Gledališka predstava Hamlet") == "predstava"
 
-    def test_festival(self):
-        assert categorize_event_type("Festival Lent 2026") == "festival"
+    def test_kultura_delavnica(self):
+        assert categorize_event_type("Kreativna delavnica") == "kultura"
 
     def test_sport(self):
         assert categorize_event_type("Maraton treh src") == "sport"
 
-    def test_unknown(self):
-        result = categorize_event_type("Dopis o storitvi XYZ")
-        assert result is None or result == "nekategorizirano"
+    def test_sejmi(self):
+        assert categorize_event_type("Veliki bolšji sejem") == "sejmi"
+
+    def test_za_otroke(self):
+        assert categorize_event_type("Lutkovna predstava za otroke") == "za otroke"
+
+    def test_literatura(self):
+        assert categorize_event_type("Literarni večer in predstavitev knjige") == "literatura"
+
+    def test_unknown_is_ostalo(self):
+        # Brez ujemanja → 'ostalo' (vedno vrne nekaj)
+        assert categorize_event_type("Dopis o storitvi XYZ") == "ostalo"
 
 
 class TestCategorizeTargetAudience:

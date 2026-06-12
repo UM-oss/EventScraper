@@ -9,6 +9,7 @@ psycopg2-binary==2.9.11    # PostgreSQL driver
 
 # HTTP / scraping
 requests==2.32.3
+httpx[http2]==0.28.1      # HTTP/2 + connection pooling (hitrejši detail fetchi)
 cloudscraper==1.2.71
 beautifulsoup4==4.12.3
 lxml==5.3.0
