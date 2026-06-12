@@ -23,4 +23,4 @@ USER app
 EXPOSE 8080
 
 # Migracije pred startup-om + bootstrap medijev + gunicorn
-CMD ["sh", "-c", "alembic upgrade head && python scripts/bootstrap_admin.py && gunicorn -w 1 --threads 4 -b 0.0.0.0:8080 --timeout 300 web.app:app"]
+CMD ["sh", "-c", "alembic upgrade head && python scripts/bootstrap_admin.py && gunicorn -w 1 --threads 4 --preload -b 0.0.0.0:8080 --timeout 300 web.app:app"]
