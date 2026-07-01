@@ -9,15 +9,18 @@ Dodajanje uporabnika:
 
 import os
 import sys
+import io
+import re
 import json
 import time
+import zipfile
 import secrets
 import functools
 from datetime import datetime, date, timedelta
 
 import yaml
 import bcrypt
-from flask import Flask, render_template, request, jsonify, redirect, url_for, session, abort
+from flask import Flask, render_template, request, jsonify, redirect, url_for, session, abort, send_file
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -2175,6 +2178,115 @@ def task_status():
         else:
             safe_state[key] = val
     return jsonify(safe_state)
+
+
+# ============================================================
+# IZVOZ ZA DRUPAL — JSON po dogodku, zapakiran v ZIP
+# ============================================================
+
+def _slugify(text, maxlen=60):
+    """Preprost slug za ime datoteke (samo a-z, 0-9, -)."""
+    text = (text or "").lower()
+    # zamenjava šumnikov
+    for a, b in (("č", "c"), ("š", "s"), ("ž", "z"), ("đ", "d"), ("ć", "c")):
+        text = text.replace(a, b)
+    text = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    return (text[:maxlen].strip("-")) or "dogodek"
+
+
+def event_to_export_dict(ev):
+    """Pretvori Event v čist, ravni JSON slovar za uvoz v Drupal.
+
+    Struktura je namenoma ravna in stabilna, da jo je v lastnem Drupal
+    modulu enostavno mapirati na polja vsebinskega tipa.
+    """
+    # categories je shranjen kot niz ločen z vejico → tudi kot seznam za udobje
+    cats_raw = (ev.categories or "").strip()
+    cats_list = [c.strip() for c in cats_raw.split(",") if c.strip()] if cats_raw else []
+    return {
+        "id": ev.id,
+        "title": ev.title,
+        "description": ev.description,
+        "date_start": ev.date_start.isoformat() if ev.date_start else None,
+        "date_end": ev.date_end.isoformat() if ev.date_end else None,
+        "time_start": ev.time_start,
+        "time_end": ev.time_end,
+        "location": ev.location,
+        "address": ev.address,
+        "price": ev.price,
+        "organizer": ev.organizer,
+        "category": ev.event_type,          # ena od 8 fiksnih kategorij
+        "categories": cats_list,            # dodatne oznake (seznam)
+        "target_audience": ev.target_audience,
+        "district": ev.district,
+        "region": ev.region,
+        "image_url": ev.image_url,
+        "source_url": ev.source_url,
+        "detail_url": ev.detail_url,
+        "ticket_url": ev.ticket_url,
+        "source_id": ev.source_id,
+        "source_event_id": ev.source_event_id,
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+    }
+
+
+@app.route("/api/export/drupal-zip")
+@auth_required
+def export_drupal_zip():
+    """Prenese ZIP z eno JSON datoteko na potrjen (approved) dogodek.
+
+    Neobvezni parameter ?status=approved|queued|pushed|published|all
+    (privzeto 'approved'). Izvozi le aktivne, nepretekle dogodke.
+    """
+    wanted = request.args.get("status", "approved")
+    with get_db() as db:
+        q = db.query(Event).filter(
+            Event.is_active == True,  # noqa: E712
+            Event.date_start >= date.today(),
+        )
+        if wanted != "all":
+            validate_status(wanted)
+            q = q.join(event_media, event_media.c.event_id == Event.id).filter(
+                event_media.c.status == wanted
+            )
+        events = q.order_by(Event.date_start.asc()).all()
+
+        buf = io.BytesIO()
+        seen = {}
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for ev in events:
+                data = event_to_export_dict(ev)
+                slug = _slugify(ev.title)
+                name = f"{ev.id}-{slug}.json"
+                # zaščita pred podvojenim imenom (ne bi smelo, id je unikaten)
+                if name in seen:
+                    name = f"{ev.id}-{slug}-{seen[name]}.json"
+                seen[name] = seen.get(name, 0) + 1
+                zf.writestr(
+                    name,
+                    json.dumps(data, ensure_ascii=False, indent=2)
+                )
+            # manifest z vsemi dogodki naenkrat (za paketni uvoz, če ustreza)
+            zf.writestr(
+                "_manifest.json",
+                json.dumps(
+                    {
+                        "count": len(events),
+                        "status": wanted,
+                        "generated_at": datetime.utcnow().isoformat() + "Z",
+                        "events": [event_to_export_dict(e) for e in events],
+                    },
+                    ensure_ascii=False, indent=2
+                )
+            )
+        buf.seek(0)
+
+    stamp = datetime.now().strftime("%Y%m%d-%H%M")
+    fname = f"drupal-dogodki-{wanted}-{stamp}.zip"
+    return send_file(
+        buf, mimetype="application/zip",
+        as_attachment=True, download_name=fname
+    )
 
 
 if __name__ == "__main__":
